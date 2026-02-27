@@ -12,10 +12,13 @@ class Bullet:
         self.bounce_count = 0
 
     def update(self, dt, walls):
+        old_position = self.position.copy()
         self.position += self.velocity * dt
 
         for wall in walls:
             if wall.rect.collidepoint(self.position.x, self.position.y):
+                # Move back out of the wall before reflecting to avoid "stuck" bounces
+                self.position = old_position
                 self.reflect(wall.rect)
                 self.bounce_count += 1
 
@@ -45,7 +48,10 @@ class Bullet:
 
         self.velocity = self.velocity - 2 * self.velocity.dot(normal) * normal
 
-    def render(self, screen):
-        pygame.draw.circle(screen, (255, 255, 0),
-                           (int(self.position.x), int(self.position.y)),
-                           self.radius)
+    def render(self, screen, offset=pygame.Vector2(0, 0)):
+        pygame.draw.circle(
+            screen,
+            (255, 255, 0),
+            (int(self.position.x + offset.x), int(self.position.y + offset.y)),
+            self.radius,
+        )

@@ -8,6 +8,8 @@ class Level:
         self.walls = []
         self.spawn_p1 = None
         self.spawn_p2 = None
+        self.width = 0
+        self.height = 0
 
         with open(path, "r") as f:
             rows = f.readlines()
@@ -47,7 +49,15 @@ class Level:
         if self.spawn_p1 is None or self.spawn_p2 is None:
             raise ValueError("Spawn points P1 or P2 not found in level file.")
 
-    # ✅ ADD THIS
-    def render(self, screen):
+        # Compute level pixel dimensions from walls (fallback to map size if no walls)
+        if self.walls:
+            self.width = max(w.rect.right for w in self.walls)
+            self.height = max(w.rect.bottom for w in self.walls)
+        else:
+            # Fallback: use map rows/cols
+            self.width = len(rows[0].strip()) * TILE_SIZE if rows else 0
+            self.height = len(rows) * TILE_SIZE
+
+    def render(self, screen, offset=pygame.Vector2(0, 0)):
         for wall in self.walls:
-            wall.render(screen)
+            wall.render(screen, offset)

@@ -34,6 +34,15 @@ BULLET_RADIUS = 5
 TILE_SIZE = 50
 
 # =============================
+# UI / HUD
+# =============================
+# Side banner width for each player (left/right)
+UI_SIDE_WIDTH = 220
+
+# Bullet shooting cooldown (seconds)
+BULLET_COOLDOWN = 0.4
+
+# =============================
 # CONTROLS
 # =============================
 PLAYER1_CONTROLS = {
@@ -41,7 +50,8 @@ PLAYER1_CONTROLS = {
     "backward": pygame.K_s,
     "left": pygame.K_a,
     "right": pygame.K_d,
-    "shoot": pygame.K_SPACE,
+    # Allow multiple shoot keys (Space / F)
+    "shoot": (pygame.K_SPACE, pygame.K_f),
 }
 
 PLAYER2_CONTROLS = {
@@ -49,5 +59,6 @@ PLAYER2_CONTROLS = {
     "backward": pygame.K_DOWN,
     "left": pygame.K_LEFT,
     "right": pygame.K_RIGHT,
-    "shoot": pygame.K_RETURN,
+    # Allow multiple shoot keys (Enter / M)
+    "shoot": (pygame.K_RETURN, pygame.K_m),
 }
