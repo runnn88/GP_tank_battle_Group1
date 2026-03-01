@@ -69,10 +69,10 @@ class Tank:
         # Load sprites for body and turret
         if color == (0, 200, 0):
             body_path = "assets/body_5.png"
-            turret_path = "assets/turret_5.png"
+            turret_path = "assets/blue_turret.png"
         else:
             body_path = "assets/body_6.png"
-            turret_path = "assets/turret_6.png"
+            turret_path = "assets/pink_turret_1.png"
 
         base_size = int(self.radius * 2.6)
         self.body_image = pygame.image.load(body_path).convert_alpha()
@@ -85,7 +85,7 @@ class Tank:
         orig_w, orig_h = self.turret_image.get_size()
         # Scale so the longest side matches ~70% of body size
         max_side = max(orig_w, orig_h)
-        scale = (base_size * 0.7) / max_side
+        scale = (base_size * 0.9) / max_side
         new_size = (int(orig_w * scale), int(orig_h * scale))
         self.turret_image = pygame.transform.scale(self.turret_image, new_size)
         

@@ -13,8 +13,11 @@ class Level:
         self.width = 0
         self.height = 0
 
+        # Background
+        self.background = pygame.image.load("assets/BG/content.png").convert()
+
         # Load textures
-        self.ground_image = pygame.image.load("assets/sand.png").convert()
+        self.ground_image = pygame.image.load("assets/road.png").convert_alpha()
         self.ground_image = pygame.transform.scale(
             self.ground_image, (TILE_SIZE, TILE_SIZE)
         )
@@ -44,6 +47,8 @@ class Level:
             # self.height = len(self.rows) * TILE_SIZE
             self.width = settings.map_width * TILE_SIZE
             self.height = settings.map_height * TILE_SIZE
+
+        self.background = pygame.transform.scale(self.background, (self.width, self.height))
 
     # ======================================================
     # FILE LOADING 
@@ -135,11 +140,18 @@ class Level:
         )
 
     def render(self, screen, offset=pygame.Vector2(0, 0)):
+        screen.blit(self.background, (offset.x, offset.y))
+        # screen.blit(self.background, (0, 0))
+
+
         # Draw tiled background for entire level area
         for row_index, row in enumerate(self.rows):
             for col_index in range(len(row)):
-                x = col_index * TILE_SIZE + offset.x
-                y = row_index * TILE_SIZE + offset.y
+                # x = col_index * TILE_SIZE + offset.x
+                # y = row_index * TILE_SIZE + offset.y
+                # screen.blit(self.ground_image, (x, y))
+                x = int(col_index * TILE_SIZE + offset.x)  # Làm tròn tọa độ x
+                y = int(row_index * TILE_SIZE + offset.y)  # Làm tròn tọa độ y
                 screen.blit(self.ground_image, (x, y))
 
         # Draw walls on top
