@@ -9,22 +9,48 @@ from config import (
     BULLET_COOLDOWN,
 )
 from game.bullet import Bullet
-
+from game.settings_manager import settings
 
 class Tank:
-    def __init__(self, position, controls, color):
+    def __init__(self,
+                 position,
+                 controls,
+                 color,
+                 turret_left_key_name,
+                 turret_right_key_name):
+
+        # ---------------------------
+        # Core Transform
+        # ---------------------------
         self.position = pygame.Vector2(position)
         self.angle = 0
-        self.controls = controls
-        self.color = color
+        self.turret_angle = 0
 
+        # ---------------------------
+        # Controls
+        # ---------------------------
+        self.controls = controls
+        self.turret_left_key_name = turret_left_key_name
+        self.turret_right_key_name = turret_right_key_name
+
+        # ---------------------------
+        # Visual / Identity
+        # ---------------------------
+        self.color = color
         self.radius = TANK_RADIUS
+
+        # ---------------------------
+        # Gameplay State
+        # ---------------------------
         self.health = 3
         self.alive = True
 
+        # ---------------------------
+        # Shooting
+        # ---------------------------
         self.bullets = []
         self.shoot_cooldown = 0.0
-
+        
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
             shoot_keys = self.controls.get("shoot")
@@ -49,7 +75,9 @@ class Tank:
             self.angle -= ROTATION_SPEED * dt
         if keys[self.controls["right"]]:
             self.angle += ROTATION_SPEED * dt
-
+        if not settings.independent_turret:
+            self.turret_angle = self.angle
+    
         direction = pygame.Vector2(
             math.cos(math.radians(self.angle)),
             math.sin(math.radians(self.angle))
@@ -76,22 +104,42 @@ class Tank:
             bullet.update(dt, walls)
 
             # Bullet vs Tank
-            if bullet.alive and enemy.alive:
+            if bullet.alive:
+                 # --- Bullet hits enemy ---
+                if enemy.alive:
+                    if self.circle_collision(
+                        bullet.position, bullet.radius,
+                        enemy.position, enemy.radius
+                    ):
+                        # Allow friendly fire or not
+                        if settings.friendly_fire or bullet.owner != enemy:
+                            enemy.take_damage()
+                            bullet.alive = False
 
-                if not FRIENDLY_FIRE and bullet.owner == enemy:
-                    pass
-                else:
-                    if self.circle_collision(bullet.position, bullet.radius,
-                                            enemy.position, enemy.radius):
-                        enemy.take_damage()
-                        bullet.alive = False
+                # --- Bullet hits self ---
+                if self.alive and bullet.owner == self:
+                    if settings.bullet_can_hit_self:
+                        if self.circle_collision(
+                            bullet.position, bullet.radius,
+                            self.position, self.radius
+                        ):
+                            self.take_damage()
+                            bullet.alive = False
+                    
+                    #if independent turret setting enabled, allow separate rotation with keybinds
+                    if settings.independent_turret:
+                        if keys[settings.keybinds[self.turret_left_key_name]]:
+                            self.turret_angle -= ROTATION_SPEED * dt
 
-        self.bullets = [b for b in self.bullets if b.alive]
-
+                        if keys[settings.keybinds[self.turret_right_key_name]]:
+                            self.turret_angle += ROTATION_SPEED * dt
+                    else:
+                        self.turret_angle = self.angle
+            
     def shoot(self):
         direction = pygame.Vector2(
-            math.cos(math.radians(self.angle)),
-            math.sin(math.radians(self.angle))
+            math.cos(math.radians(self.turret_angle)),
+            math.sin(math.radians(self.turret_angle))
         )
         # Spawn at the tip of the barrel (matches render barrel length)
         barrel_length = self.radius + 15
@@ -141,14 +189,16 @@ class Tank:
             [(c.x, c.y) for c in corners],
         )
 
-        # --- Turret base: circle at center ---
+        # --- Turret base (rotates with body visually centered) ---
         turret_radius = int(self.radius * 0.8)
+
         pygame.draw.circle(
             screen,
-            (40, 40, 40), # color of the base
+            (40, 40, 40),
             (int(center.x), int(center.y)),
             turret_radius,
         )
+
         pygame.draw.circle(
             screen,
             self.color,
@@ -156,18 +206,22 @@ class Tank:
             turret_radius - 2,
         )
 
-        # --- Turret barrel ---
+        # --- Turret barrel (USES TURRET ANGLE) ---
+        turret_direction = pygame.Vector2(
+            math.cos(math.radians(self.turret_angle)),
+            math.sin(math.radians(self.turret_angle)),
+        )
+
         barrel_length = self.radius + 18
-        barrel_end = self.position + direction * barrel_length
+        barrel_end = center + turret_direction * barrel_length
 
         pygame.draw.line(
             screen,
             (0, 0, 0),
             center,
-            barrel_end + offset,
+            barrel_end,
             4,
         )
-
         # Draw bullets
         for bullet in self.bullets:
             bullet.render(screen, offset)

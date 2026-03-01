@@ -1,4 +1,8 @@
+import pygame
+
 from states.base_state import BaseState
+from states.pause_state import PauseState
+            
 from game.level import Level
 from game.tank import Tank
 from ui.hud import HUD
@@ -9,8 +13,6 @@ from config import (
     SCREEN_HEIGHT,
     UI_SIDE_WIDTH,
 )
-import pygame
-
 
 class GameplayState(BaseState):
     def __init__(self, state_machine):
@@ -19,10 +21,21 @@ class GameplayState(BaseState):
         self.level = Level("data/maps/level1.txt")
         self.hud = HUD()
 
-        self.player1 = Tank(self.level.spawn_p1,
-                            PLAYER1_CONTROLS, (0, 200, 0))
-        self.player2 = Tank(self.level.spawn_p2,
-                            PLAYER2_CONTROLS, (200, 0, 0))
+        self.player1 = Tank(
+            position=self.level.spawn_p1,
+            controls=PLAYER1_CONTROLS,
+            color=(0, 200, 0),
+            turret_left_key_name="p1_turret_left",
+            turret_right_key_name="p1_turret_right",
+        )
+
+        self.player2 = Tank(
+            position=self.level.spawn_p2,
+            controls=PLAYER2_CONTROLS,
+            color=(200, 0, 0),
+            turret_left_key_name="p2_turret_left",
+            turret_right_key_name="p2_turret_right",
+        )
 
         # Compute offset so the level is centered between left/right UI banners
         play_area_width = SCREEN_WIDTH - 2 * UI_SIDE_WIDTH
@@ -31,13 +44,19 @@ class GameplayState(BaseState):
         self.level_offset = pygame.Vector2(offset_x, offset_y)
 
     def handle_events(self):
-        import pygame
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return False
-
             self.player1.handle_event(event)
             self.player2.handle_event(event)
+            
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    if not isinstance(self.state_machine.current_state, PauseState):
+                        self.state_machine.current_state = PauseState(
+                            self.state_machine,
+                            self
+                        )
 
         return True
 

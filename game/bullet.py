@@ -17,14 +17,20 @@ class Bullet:
 
         for wall in walls:
             if wall.rect.collidepoint(self.position.x, self.position.y):
-                # Move back out of the wall before reflecting to avoid "stuck" bounces
-                self.position = old_position
-                self.reflect(wall.rect)
-                self.bounce_count += 1
+                if wall.destructible:
+                    destroyed = wall.take_damage()
+                    if destroyed:
+                        walls.remove(wall)
+                else:
+                    # Move back out of the wall before reflecting to avoid "stuck" bounces
+                    self.position = old_position
+                    self.reflect(wall.rect)
+                    self.bounce_count += 1
 
-                if MAX_BULLET_BOUNCES != -1:
-                    if self.bounce_count > MAX_BULLET_BOUNCES:
-                        self.alive = False
+                    if MAX_BULLET_BOUNCES != -1:
+                        if self.bounce_count > MAX_BULLET_BOUNCES:
+                            self.alive = False
+
 
     def reflect(self, rect):
         overlap_left = abs(self.position.x - rect.left)
