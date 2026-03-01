@@ -1,13 +1,19 @@
 import pygame
 from states.base_state import BaseState
-
+from utils.helpers import draw_text_with_outline
 
 class StartState(BaseState):
     def __init__(self, state_machine):
         super().__init__(state_machine)
         # Fonts for game title and button text
-        self.title_font = pygame.font.SysFont(None, 96)
+        # self.title_font = pygame.font.SysFont(None, 96)
+        self.title_font = pygame.font.Font("assets/fonts/Tricky Jimmy.ttf", 96)
         self.button_font = pygame.font.SysFont(None, 48)
+        self.hover_scale = 1.1  # Scale factor for hover effect
+
+        # Background and Sounds
+        self.background = pygame.image.load("assets/BG/start_screen.jpg").convert()
+        self.click_sound = pygame.mixer.Sound("assets/sounds/click.mp3")
 
         # Define buttons in the middle of the screen
         screen_rect = self.state_machine.screen.get_rect()
@@ -16,13 +22,18 @@ class StartState(BaseState):
         self.button_rect = pygame.Rect(0, 0, 320, 90)
         self.button_rect.center = (screen_rect.centerx, screen_rect.centery + 80)
 
-        # "Quit" button (placed below Start)
+        # "Settings" button (placed below Start)
+        self.setting_button_rect = pygame.Rect(0, 0, 240, 80)
+        self.setting_button_rect.center = (screen_rect.centerx, screen_rect.centery + 140)
+
+        # "Quit" button
         self.quit_button_rect = pygame.Rect(0, 0, 240, 80)
         self.quit_button_rect.center = (screen_rect.centerx, screen_rect.centery + 200)
 
         # Pre-render button labels
-        self.button_text = self.button_font.render("Press Start", True, (0, 0, 0))
-        self.quit_text = self.button_font.render("Quit", True, (0, 0, 0))
+        # self.button_text = self.button_font.render("Start", True, (0, 0, 0))
+        # self.setting_text = self.button_font.render("Settings", True, (0, 0, 0))
+        # self.quit_text = self.button_font.render("Quit", True, (0, 0, 0))
 
     def handle_events(self):
         for event in pygame.event.get():
@@ -32,8 +43,10 @@ class StartState(BaseState):
             # Handle mouse clicks on buttons
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if self.button_rect.collidepoint(event.pos):
+                    self.click_sound.play()
                     self.state_machine.change_state("gameplay")
                 elif self.quit_button_rect.collidepoint(event.pos):
+                    self.click_sound.play()
                     return False
 
         return True
@@ -42,21 +55,68 @@ class StartState(BaseState):
         pass
 
     def render(self, screen):
-        screen.fill((20, 20, 20))
+        # screen.fill((20, 20, 20))
+        # screen.blit(self.background, (0, 0))
 
         # Draw game title
-        title_text = self.title_font.render("Tank Battle: Chaos Maze", True, (255, 255, 0))
+        title_text = self.title_font.render("TANK BATTLE: CHAOS MAZE", True, (255, 182, 193))
         title_rect = title_text.get_rect(center=(screen.get_rect().centerx, screen.get_rect().centery - 150))
         screen.blit(title_text, title_rect)
+        # draw_text_with_outline(screen, "TANK BATTLE: CHAOS MAZE", self.title_font, 50, 50, (255,255,255), (0,0,0))
 
-        # Draw "Press Start" button
-        pygame.draw.rect(screen, (240, 240, 240), self.button_rect)
-        pygame.draw.rect(screen, (255, 255, 255), self.button_rect, 4)
-        button_text_rect = self.button_text.get_rect(center=self.button_rect.center)
-        screen.blit(self.button_text, button_text_rect)
+        # # Draw "Press Start" button
+        # pygame.draw.rect(screen, (240, 240, 240), self.button_rect)
+        # pygame.draw.rect(screen, (255, 255, 255), self.button_rect, 4)
+        # button_text_rect = self.button_text.get_rect(center=self.button_rect.center)
+        # screen.blit(self.button_text, button_text_rect)
 
-        # Draw "Quit" button
-        pygame.draw.rect(screen, (220, 80, 80), self.quit_button_rect)
-        pygame.draw.rect(screen, (255, 255, 255), self.quit_button_rect, 4)
-        quit_text_rect = self.quit_text.get_rect(center=self.quit_button_rect.center)
-        screen.blit(self.quit_text, quit_text_rect)
+        # # Draw "Quit" button
+        # pygame.draw.rect(screen, (220, 80, 80), self.quit_button_rect)
+        # pygame.draw.rect(screen, (255, 255, 255), self.quit_button_rect, 4)
+        # quit_text_rect = self.quit_text.get_rect(center=self.quit_button_rect.center)
+        # screen.blit(self.quit_text, quit_text_rect)
+
+        # Lấy vị trí chuột
+        mouse_pos = pygame.mouse.get_pos()
+
+        # Vẽ nút "Press Start"
+        is_hovered_start = self.button_rect.collidepoint(mouse_pos)
+        # if is_hovered_start:
+        #     self.hover_scale = min(self.hover_scale + 0.1, 1.2)
+        # else:
+        #     self.hover_scale = max(self.hover_scale - 0.1, 1.0)
+        # scaled_button_rect = self.button_rect.inflate(
+        #     self.button_rect.width * (self.hover_scale - 1),
+        #     self.button_rect.height * (self.hover_scale - 1),
+        # )
+        # button_color = (200, 200, 200) if is_hovered_start else (240, 240, 240)
+        # pygame.draw.rect(screen, button_color, scaled_button_rect, border_radius=10)
+        # pygame.draw.rect(screen, (255, 255, 255), scaled_button_rect, 4, border_radius=10)
+        # button_color = (200, 200, 200) if is_hovered_start else (240, 240, 240)
+        # pygame.draw.rect(screen, button_color, self.button_rect, border_radius=10)
+        # pygame.draw.rect(screen, (255, 255, 255), self.button_rect, 4, border_radius=10)
+
+        # Thay đổi font chữ khi di chuột vào
+        button_font = pygame.font.SysFont(None, 54 if is_hovered_start else 48)
+        button_text = button_font.render("Start", True, (177, 212, 243))
+        button_text_rect = button_text.get_rect(center=self.button_rect.center)
+        screen.blit(button_text, button_text_rect)
+
+        # Thay đổi font chữ khi di chuột vào
+        is_hovered_setting = self.setting_button_rect.collidepoint(mouse_pos)
+        button_font = pygame.font.SysFont(None, 54 if is_hovered_setting else 48)
+        button_text = button_font.render("Settings", True, (177, 212, 243))
+        button_text_rect = button_text.get_rect(center=self.setting_button_rect.center)
+        screen.blit(button_text, button_text_rect)
+        
+        # Vẽ nút "Quit"
+        is_hovered_quit = self.quit_button_rect.collidepoint(mouse_pos)
+        # quit_button_color = (200, 50, 50) if is_hovered_quit else (220, 80, 80)
+        # pygame.draw.rect(screen, quit_button_color, self.quit_button_rect, border_radius=10)
+        # pygame.draw.rect(screen, (255, 255, 255), self.quit_button_rect, 4, border_radius=10)
+
+        # Thay đổi font chữ khi di chuột vào
+        quit_font = pygame.font.SysFont(None, 54 if is_hovered_quit else 48)
+        quit_text = quit_font.render("Quit", True, (177, 212, 243))
+        quit_text_rect = quit_text.get_rect(center=self.quit_button_rect.center)
+        screen.blit(quit_text, quit_text_rect)

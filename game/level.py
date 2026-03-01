@@ -14,11 +14,11 @@ class Level:
         self.height = 0
 
         # Load textures
-        self.ground_image = pygame.image.load("assets/background.png").convert()
+        self.ground_image = pygame.image.load("assets/sand.png").convert()
         self.ground_image = pygame.transform.scale(
             self.ground_image, (TILE_SIZE, TILE_SIZE)
         )
-        wall_image = pygame.image.load("assets/wall.png").convert_alpha()
+        wall_image = pygame.image.load("assets/wood.png").convert_alpha()
         self.wall_image = pygame.transform.scale(
             wall_image, (TILE_SIZE, TILE_SIZE)
         )

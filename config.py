@@ -17,7 +17,7 @@ FRIENDLY_FIRE = False    # True = self damage allowed
 # =============================
 # MAP
 # =============================
-TILE_SIZE = 35 # If map size is 50, tank radius is 20
+TILE_SIZE = 50 # If map size is 50, tank radius is 20
 
 # =============================
 # TANK SETTINGS

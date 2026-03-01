@@ -68,11 +68,11 @@ class Tank:
 
         # Load sprites for body and turret
         if color == (0, 200, 0):
-            body_path = "assets/body_1.png"
-            turret_path = "assets/turret_1.png"
+            body_path = "assets/body_5.png"
+            turret_path = "assets/turret_5.png"
         else:
-            body_path = "assets/body_2.png"
-            turret_path = "assets/turret_2.png"
+            body_path = "assets/body_6.png"
+            turret_path = "assets/turret_6.png"
 
         base_size = int(self.radius * 2.6)
         self.body_image = pygame.image.load(body_path).convert_alpha()
@@ -227,6 +227,11 @@ class Tank:
             self.position.y + offset.y,
         )
 
+        # Tính toán vị trí mới cho turret
+        turret_offset = pygame.Vector2(math.cos(math.radians(self.angle - 90)),
+                                    math.sin(math.radians(self.angle - 90))) * 17  # 20 là khoảng cách từ thân xe tăng
+        turret_center = center + turret_offset
+
         # Rotate and draw body sprite
         rotated_body = pygame.transform.rotate(self.body_image, -self.angle)
         body_rect = rotated_body.get_rect(center=(center.x, center.y))
@@ -234,7 +239,7 @@ class Tank:
 
         # Rotate and draw turret sprite (independent if you later add turret_angle)
         rotated_turret = pygame.transform.rotate(self.turret_image, -self.angle)
-        turret_rect = rotated_turret.get_rect(center=(center.x, center.y))
+        turret_rect = rotated_turret.get_rect(center=(turret_center.x, turret_center.y))
         screen.blit(rotated_turret, turret_rect.topleft)
 
         if self.flash_timer > 0:
