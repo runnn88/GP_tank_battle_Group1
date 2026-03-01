@@ -1,4 +1,8 @@
+import pygame
+
 from states.base_state import BaseState
+from states.pause_state import PauseState
+
 from game.level import Level
 from game.tank import Tank
 from ui.hud import HUD
@@ -7,10 +11,8 @@ from config import (
     PLAYER2_CONTROLS,
     SCREEN_WIDTH,
     SCREEN_HEIGHT,
-    UI_SIDE_WIDTH,
+    UI_SIDE_WIDTH
 )
-import pygame
-
 
 class GameplayState(BaseState):
     def __init__(self, state_machine):
@@ -19,10 +21,21 @@ class GameplayState(BaseState):
         self.level = Level("data/maps/level1.txt")
         self.hud = HUD()
 
-        self.player1 = Tank(self.level.spawn_p1,
-                            PLAYER1_CONTROLS, (0, 200, 0))
-        self.player2 = Tank(self.level.spawn_p2,
-                            PLAYER2_CONTROLS, (200, 0, 0))
+        self.player1 = Tank(
+            position=self.level.spawn_p1,
+            controls=PLAYER1_CONTROLS, 
+            color=(0, 200, 0),
+            turret_left_key_name="p1_turret_left",
+            turret_right_key_name="p1_turret_right"
+        )
+        
+        self.player2 = Tank(
+            position=self.level.spawn_p2,
+            controls=PLAYER2_CONTROLS, 
+            color=(200, 0, 0),
+            turret_left_key_name="p2_turret_left",
+            turret_right_key_name="p2_turret_right"
+        )
 
         # Offset to place the level between left and right HUD panels.
         # If the level is narrower than the play area, center it.
@@ -47,13 +60,20 @@ class GameplayState(BaseState):
         self.waiting_for_explosion = False
 
     def handle_events(self):
-        import pygame
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return False
 
             self.player1.handle_event(event)
             self.player2.handle_event(event)
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    if not isinstance(self.state_machine.current_state, PauseState):
+                        # self.state_machine.change_state(
+                        #     PauseState(self.state_machine, self)
+                        # )
+                        self.state_machine.current_state = PauseState(self.state_machine, self)
 
         return True
 
@@ -99,6 +119,7 @@ class GameplayState(BaseState):
 
         # Draw level and tanks centered in the middle play area
         self.level.render(screen, self.level_offset)
+        
         self.player1.render(screen, self.level_offset)
         self.player2.render(screen, self.level_offset)
 
