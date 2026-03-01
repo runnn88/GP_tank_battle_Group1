@@ -10,18 +10,29 @@ class Bullet:
         self.alive = True
         self.owner = owner
         self.bounce_count = 0
+        self.sparks = []  # List of spark particles for visual effect
 
     def update(self, dt, walls):
+        old_position = self.position.copy()
         self.position += self.velocity * dt
 
         for wall in walls:
             if wall.rect.collidepoint(self.position.x, self.position.y):
-                self.reflect(wall.rect)
-                self.bounce_count += 1
+                if wall.destructible:
+                    destroyed = wall.take_damage()
+                    if destroyed:
+                        walls.remove(wall)
+                else:
+                    # Move back out of the wall before reflecting to avoid "stuck" bounces
+                    self.position = old_position
+                    self.reflect(wall.rect)
+                    self.bounce_count += 1
 
-                if MAX_BULLET_BOUNCES != -1:
-                    if self.bounce_count > MAX_BULLET_BOUNCES:
-                        self.alive = False
+                    if MAX_BULLET_BOUNCES != -1:
+                        if self.bounce_count > MAX_BULLET_BOUNCES:
+                            self.alive = False
+
+        self.sparks = [(pos, timer + dt) for pos, timer in self.sparks if timer < 0.2]
 
     def reflect(self, rect):
         overlap_left = abs(self.position.x - rect.left)
@@ -45,7 +56,14 @@ class Bullet:
 
         self.velocity = self.velocity - 2 * self.velocity.dot(normal) * normal
 
-    def render(self, screen):
-        pygame.draw.circle(screen, (255, 255, 0),
-                           (int(self.position.x), int(self.position.y)),
-                           self.radius)
+    def render(self, screen, offset=pygame.Vector2(0, 0)):
+        pygame.draw.circle(
+            screen,
+            (255, 255, 0),
+            (int(self.position.x + offset.x), int(self.position.y + offset.y)),
+            self.radius,
+        )
+
+        for pos, timer in self.sparks:
+            spark_size = int(10 * (1 - timer / 0.2))  # Kích thước giảm dần
+            pygame.draw.circle(screen, (255, 200, 0), (int(pos.x + offset.x), int(pos.y + offset.y)), spark_size)

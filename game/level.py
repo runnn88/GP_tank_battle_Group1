@@ -1,6 +1,8 @@
 import pygame
+import random
 from config import TILE_SIZE
 from game.wall import Wall
+from game.settings_manager import settings
 
 
 class Level:
@@ -8,12 +10,51 @@ class Level:
         self.walls = []
         self.spawn_p1 = None
         self.spawn_p2 = None
+        self.width = 0
+        self.height = 0
 
+        # Load textures
+        self.ground_image = pygame.image.load("assets/background.png").convert()
+        self.ground_image = pygame.transform.scale(
+            self.ground_image, (TILE_SIZE, TILE_SIZE)
+        )
+        wall_image = pygame.image.load("assets/wall.png").convert_alpha()
+        self.wall_image = pygame.transform.scale(
+            wall_image, (TILE_SIZE, TILE_SIZE)
+        )
+
+        # Decide generation mode
+        if settings.random_map:
+            self._generate_random()
+        else:
+            if path is None:
+                raise ValueError("Path required when random_map is False.")
+            self._load_from_file(path)
+
+        if self.spawn_p1 is None or self.spawn_p2 is None:
+            raise ValueError("Spawn points P1 or P2 not found in level file.")
+
+        # Compute level pixel dimensions from walls (fallback to map size if no walls)
+        if self.walls:
+            self.width = max(w.rect.right for w in self.walls)
+            self.height = max(w.rect.bottom for w in self.walls)
+        else:
+            # Fallback: use map rows/cols
+            # self.width = len(self.rows[0].strip()) * TILE_SIZE if self.rows else 0
+            # self.height = len(self.rows) * TILE_SIZE
+            self.width = settings.map_width * TILE_SIZE
+            self.height = settings.map_height * TILE_SIZE
+
+    # ======================================================
+    # FILE LOADING 
+    # ======================================================
+    def _load_from_file(self, path):
         with open(path, "r") as f:
             rows = f.readlines()
+        
+        self.rows = [row.strip() for row in rows]
 
-        for row_index, row in enumerate(rows):
-            row = row.strip()
+        for row_index, row in enumerate(self.rows):
             col_index = 0
 
             while col_index < len(row):
@@ -40,14 +81,67 @@ class Level:
 
                 # Detect Wall
                 if row[col_index] == "W":
-                    self.walls.append(Wall(x, y, TILE_SIZE))
+                    self.walls.append(Wall(x, y, TILE_SIZE, image=self.wall_image))
 
                 col_index += 1
+    
+    # ======================================================
+    # RANDOM MAP GENERATION 
+    # ======================================================
+    def _generate_random(self):
 
-        if self.spawn_p1 is None or self.spawn_p2 is None:
-            raise ValueError("Spawn points P1 or P2 not found in level file.")
+        width = settings.map_width
+        height = settings.map_height
 
-    # ✅ ADD THIS
-    def render(self, screen):
+        for y in range(height):
+            for x in range(width):
+
+                world_x = x * TILE_SIZE
+                world_y = y * TILE_SIZE
+
+                # Always keep border solid
+                if x == 0 or y == 0 or x == width - 1 or y == height - 1:
+                    self.walls.append(Wall(world_x, world_y, TILE_SIZE))
+                    continue
+
+                if random.random() < settings.wall_density:
+
+                    # Determine wall type
+                    if settings.allow_destructible and settings.allow_indestructible:
+                        destructible = random.choice([True, False])
+
+                    elif settings.allow_destructible:
+                        destructible = True
+
+                    elif settings.allow_indestructible:
+                        destructible = False
+
+                    else:
+                        continue  # No walls allowed
+
+                    self.walls.append(
+                        Wall(world_x, world_y, TILE_SIZE, destructible)
+                    )
+
+        # Safe spawn positions in opposite corners
+        self.spawn_p1 = (
+            TILE_SIZE * 1.5,
+            TILE_SIZE * 1.5
+        )
+
+        self.spawn_p2 = (
+            TILE_SIZE * (width - 1.5),
+            TILE_SIZE * (height - 1.5)
+        )
+
+    def render(self, screen, offset=pygame.Vector2(0, 0)):
+        # Draw tiled background for entire level area
+        for row_index, row in enumerate(self.rows):
+            for col_index in range(len(row)):
+                x = col_index * TILE_SIZE + offset.x
+                y = row_index * TILE_SIZE + offset.y
+                screen.blit(self.ground_image, (x, y))
+
+        # Draw walls on top
         for wall in self.walls:
-            wall.render(screen)
+            wall.render(screen, offset)
