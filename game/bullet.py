@@ -10,6 +10,7 @@ class Bullet:
         self.alive = True
         self.owner = owner
         self.bounce_count = 0
+        self.sparks = []  # List of spark particles for visual effect
 
     def update(self, dt, walls):
         old_position = self.position.copy()
@@ -25,6 +26,8 @@ class Bullet:
                 if MAX_BULLET_BOUNCES != -1:
                     if self.bounce_count > MAX_BULLET_BOUNCES:
                         self.alive = False
+
+        self.sparks = [(pos, timer + dt) for pos, timer in self.sparks if timer < 0.2]
 
     def reflect(self, rect):
         overlap_left = abs(self.position.x - rect.left)
@@ -55,3 +58,7 @@ class Bullet:
             (int(self.position.x + offset.x), int(self.position.y + offset.y)),
             self.radius,
         )
+
+        for pos, timer in self.sparks:
+            spark_size = int(10 * (1 - timer / 0.2))  # Kích thước giảm dần
+            pygame.draw.circle(screen, (255, 200, 0), (int(pos.x + offset.x), int(pos.y + offset.y)), spark_size)

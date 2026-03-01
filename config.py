@@ -15,23 +15,23 @@ MAX_BULLET_BOUNCES = 3   # -1 for infinite bounce
 FRIENDLY_FIRE = False    # True = self damage allowed
 
 # =============================
+# MAP
+# =============================
+TILE_SIZE = 35 # If map size is 50, tank radius is 20
+
+# =============================
 # TANK SETTINGS
 # =============================
-TANK_SPEED = 220
+TANK_SPEED = 200 # If map size is 50, tank speed is 220
 ROTATION_SPEED = 200
-TANK_RADIUS = 20
-TANK_HEALTH = 3
+TANK_RADIUS = TILE_SIZE * 20 / 50
+TANK_HEALTH = 100
 
 # =============================
 # BULLET SETTINGS
 # =============================
 BULLET_SPEED = 500
 BULLET_RADIUS = 5
-
-# =============================
-# MAP
-# =============================
-TILE_SIZE = 50
 
 # =============================
 # UI / HUD

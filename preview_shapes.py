@@ -1,16 +1,15 @@
 # preview_shapes.py
 import pygame
-from game.tank import Tank
+from explosion import Explosion
 from game.wall import Wall
-from config import TANK_RADIUS, TILE_SIZE
+from config import TILE_SIZE
 
 pygame.init()
 screen = pygame.display.set_mode((400, 300))
 clock = pygame.time.Clock()
 
-# Tạo tank test ở giữa màn hình
-tank = Tank((200, 150), controls={}, color=(0, 200, 0))
-tank.angle = 0  # hướng nòng súng
+# Tạo hiệu ứng nổ test
+explosion = Explosion((200, 150), duration=2.0, max_size=50)
 
 # Tạo 1 tường test
 wall = Wall(100, 100, TILE_SIZE)
@@ -21,10 +20,14 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
+    # Cập nhật hiệu ứng nổ
+    dt = clock.tick(60) / 1000.0  # Delta time
+    explosion.update(dt)
+
+    # Vẽ màn hình
     screen.fill((30, 30, 30))
     wall.render(screen)
-    tank.render(screen)
+    explosion.render(screen)
     pygame.display.flip()
-    clock.tick(60)
 
 pygame.quit()

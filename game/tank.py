@@ -7,6 +7,7 @@ from config import (
     MAX_BULLETS,
     FRIENDLY_FIRE,
     BULLET_COOLDOWN,
+    TANK_HEALTH,
 )
 from game.bullet import Bullet
 
@@ -19,11 +20,44 @@ class Tank:
         self.color = color
 
         self.radius = TANK_RADIUS
-        self.health = 3
+        self.health = TANK_HEALTH
         self.alive = True
 
         self.bullets = []
         self.shoot_cooldown = 0.0
+
+        # Load sprites for body and turret
+        if color == (0, 200, 0):
+            body_path = "assets/body_1.png"
+            turret_path = "assets/turret_1.png"
+        else:
+            body_path = "assets/body_2.png"
+            turret_path = "assets/turret_2.png"
+
+        base_size = int(self.radius * 2.6)
+        self.body_image = pygame.image.load(body_path).convert_alpha()
+        self.body_image = pygame.transform.scale(
+            self.body_image, (base_size, base_size)
+        )
+
+        # Load turret sprite and scale with aspect ratio preserved
+        self.turret_image = pygame.image.load(turret_path).convert_alpha()
+        orig_w, orig_h = self.turret_image.get_size()
+        # Scale so the longest side matches ~70% of body size
+        max_side = max(orig_w, orig_h)
+        scale = (base_size * 0.7) / max_side
+        new_size = (int(orig_w * scale), int(orig_h * scale))
+        self.turret_image = pygame.transform.scale(self.turret_image, new_size)
+
+        self.explosions = []  # Danh sách hiệu ứng nổ
+        self.flash_duration = 0.1  # Thời gian flash khi bắn
+        self.flash_timer = 0.0
+
+        # Load âm thanh
+        self.shoot_sound = pygame.mixer.Sound("assets/sounds/shoot.mp3")
+        self.hit_sound = pygame.mixer.Sound("assets/sounds/shoot.mp3")
+        self.explosion_sound = pygame.mixer.Sound("assets/sounds/explosion.mp3")
+        
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
@@ -50,9 +84,11 @@ class Tank:
         if keys[self.controls["right"]]:
             self.angle += ROTATION_SPEED * dt
 
+        # In our sprites, angle 0 points "up", so shift by -90 degrees
+        move_rad = math.radians(self.angle - 90)
         direction = pygame.Vector2(
-            math.cos(math.radians(self.angle)),
-            math.sin(math.radians(self.angle))
+            math.cos(move_rad),
+            math.sin(move_rad),
         )
 
         # Compute intended velocity along current facing direction
@@ -85,23 +121,39 @@ class Tank:
                                             enemy.position, enemy.radius):
                         enemy.take_damage()
                         bullet.alive = False
+                        bullet.sparks.append((bullet.position.copy(), 0))  # Thêm hiệu ứng tia lửa
 
         self.bullets = [b for b in self.bullets if b.alive]
 
+        if self.flash_timer > 0:
+            # self.flash_timer = max(0.0, self.flash_timer - dt)
+            self.flash_timer -= dt
+
+        self.explosions = [(pos, timer + dt) for pos, timer in self.explosions if timer + dt < 5.0]
+
     def shoot(self):
+        # Use same direction convention as movement (0 degrees = up)
+        shoot_rad = math.radians(self.angle - 90)
         direction = pygame.Vector2(
-            math.cos(math.radians(self.angle)),
-            math.sin(math.radians(self.angle))
+            math.cos(shoot_rad),
+            math.sin(shoot_rad),
         )
-        # Spawn at the tip of the barrel (matches render barrel length)
         barrel_length = self.radius + 15
         spawn = self.position + direction * barrel_length
         self.bullets.append(Bullet(spawn, direction, self))
 
+        self.flash_timer = self.flash_duration  # Kích hoạt hiệu ứng flash
+        self.shoot_sound.play()  # Phát âm thanh bắn
+
     def take_damage(self):
-        self.health -= 1
+        self.health -= 20
+        self.hit_sound.play()
         if self.health <= 0:
+            # self.explosions.append((self.position.copy(), 0))  # Thêm hiệu ứng nổ
+            # self.explosion_sound.play()
             self.alive = False
+            self.explosions.append((self.position.copy(), 0))  # Thêm hiệu ứng nổ
+            self.explosion_sound.play()
 
     def circle_collision(self, p1, r1, p2, r2):
         return p1.distance_to(p2) <= (r1 + r2)
@@ -113,64 +165,32 @@ class Tank:
             self.position.y + offset.y,
         )
 
-        # Calculate forward and right direction vectors
-        direction = pygame.Vector2(
-            math.cos(math.radians(self.angle)),
-            math.sin(math.radians(self.angle)),
-        )
-        right = pygame.Vector2(-direction.y, direction.x)
+        # Rotate and draw body sprite
+        rotated_body = pygame.transform.rotate(self.body_image, -self.angle)
+        body_rect = rotated_body.get_rect(center=(center.x, center.y))
+        screen.blit(rotated_body, body_rect.topleft)
 
-        # --- Body: rotated rectangle ---
-        body_length = self.radius * 2.6  # along forward
-        body_width = self.radius * 1.6   # across
+        # Rotate and draw turret sprite (independent if you later add turret_angle)
+        rotated_turret = pygame.transform.rotate(self.turret_image, -self.angle)
+        turret_rect = rotated_turret.get_rect(center=(center.x, center.y))
+        screen.blit(rotated_turret, turret_rect.topleft)
 
-        half_fwd = direction * (body_length / 2)
-        half_right = right * (body_width / 2)
-
-        # 4 corners of the rectangle
-        corners = [
-            center + half_fwd + half_right,
-            center + half_fwd - half_right,
-            center - half_fwd - half_right,
-            center - half_fwd + half_right,
-        ]
-
-        pygame.draw.polygon(
-            screen,
-            self.color,
-            [(c.x, c.y) for c in corners],
-        )
-
-        # --- Turret base: circle at center ---
-        turret_radius = int(self.radius * 0.8)
-        pygame.draw.circle(
-            screen,
-            (40, 40, 40), # color of the base
-            (int(center.x), int(center.y)),
-            turret_radius,
-        )
-        pygame.draw.circle(
-            screen,
-            self.color,
-            (int(center.x), int(center.y)),
-            turret_radius - 2,
-        )
-
-        # --- Turret barrel ---
-        barrel_length = self.radius + 18
-        barrel_end = self.position + direction * barrel_length
-
-        pygame.draw.line(
-            screen,
-            (0, 0, 0),
-            center,
-            barrel_end + offset,
-            4,
-        )
+        if self.flash_timer > 0:
+            flash_pos = center + pygame.Vector2(math.cos(math.radians(self.angle - 90)),
+                                                math.sin(math.radians(self.angle - 90))) * (self.radius + 15)
+            pygame.draw.circle(screen, (255, 255, 0), (int(flash_pos.x), int(flash_pos.y)), 5)
 
         # Draw bullets
         for bullet in self.bullets:
             bullet.render(screen, offset)
+
+        # Hiển thị hiệu ứng nổ
+        for pos, timer in self.explosions:
+            explosion_size = int(30 * timer)  # Kích thước nổ tăng dần
+            alpha = max(255 - int(255 * timer), 0)  # Giảm độ trong suốt
+            explosion_surface = pygame.Surface((explosion_size * 2, explosion_size * 2), pygame.SRCALPHA)
+            pygame.draw.circle(explosion_surface, (255, 100, 0, alpha), (explosion_size, explosion_size), explosion_size)
+            screen.blit(explosion_surface, (pos.x + offset.x - explosion_size, pos.y + offset.y - explosion_size))
 
     def get_aabb(self):
         """Axis-aligned bounding box around the circular tank body."""

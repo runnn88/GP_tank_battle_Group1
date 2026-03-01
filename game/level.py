@@ -11,11 +11,22 @@ class Level:
         self.width = 0
         self.height = 0
 
+        # Load textures
+        self.ground_image = pygame.image.load("assets/background.png").convert()
+        self.ground_image = pygame.transform.scale(
+            self.ground_image, (TILE_SIZE, TILE_SIZE)
+        )
+        wall_image = pygame.image.load("assets/wall.png").convert_alpha()
+        self.wall_image = pygame.transform.scale(
+            wall_image, (TILE_SIZE, TILE_SIZE)
+        )
+
         with open(path, "r") as f:
             rows = f.readlines()
 
-        for row_index, row in enumerate(rows):
-            row = row.strip()
+        self.rows = [row.strip() for row in rows]
+
+        for row_index, row in enumerate(self.rows):
             col_index = 0
 
             while col_index < len(row):
@@ -42,7 +53,7 @@ class Level:
 
                 # Detect Wall
                 if row[col_index] == "W":
-                    self.walls.append(Wall(x, y, TILE_SIZE))
+                    self.walls.append(Wall(x, y, TILE_SIZE, image=self.wall_image))
 
                 col_index += 1
 
@@ -55,9 +66,17 @@ class Level:
             self.height = max(w.rect.bottom for w in self.walls)
         else:
             # Fallback: use map rows/cols
-            self.width = len(rows[0].strip()) * TILE_SIZE if rows else 0
-            self.height = len(rows) * TILE_SIZE
+            self.width = len(self.rows[0].strip()) * TILE_SIZE if self.rows else 0
+            self.height = len(self.rows) * TILE_SIZE
 
     def render(self, screen, offset=pygame.Vector2(0, 0)):
+        # Draw tiled background for entire level area
+        for row_index, row in enumerate(self.rows):
+            for col_index in range(len(row)):
+                x = col_index * TILE_SIZE + offset.x
+                y = row_index * TILE_SIZE + offset.y
+                screen.blit(self.ground_image, (x, y))
+
+        # Draw walls on top
         for wall in self.walls:
             wall.render(screen, offset)
