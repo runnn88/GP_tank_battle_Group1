@@ -17,7 +17,7 @@ FRIENDLY_FIRE = False    # True = self damage allowed
 # =============================
 # MAP
 # =============================
-TILE_SIZE = 40 # If map size is 50, tank radius is 20
+TILE_SIZE = 60 # If map size is 50, tank radius is 20
 
 # =============================
 # TANK SETTINGS
@@ -38,6 +38,9 @@ BULLET_RADIUS = 5
 # =============================
 # Side banner width for each player (left/right)
 UI_SIDE_WIDTH = 220
+
+# TOP HUD BAR
+TOP_UI_HEIGHT = 90
 
 # Bullet shooting cooldown (seconds)
 BULLET_COOLDOWN = 0.4

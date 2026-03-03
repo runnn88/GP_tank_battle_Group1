@@ -11,6 +11,7 @@ from config import (
 )
 from game.bullet import Bullet
 from game.settings_manager import settings
+from game.heart_effect import HeartParticle
 
 
 class Tank:
@@ -39,11 +40,13 @@ class Tank:
         # ---------------------------
         self.color = color
         self.radius = TANK_RADIUS
+        self.effects = []  # List of active visual effects (e.g. heart particles)
 
         # ---------------------------
         # Gameplay State
         # ---------------------------
         self.health = TANK_HEALTH
+        self.max_health = TANK_HEALTH
         self.alive = True
 
         # ---------------------------
@@ -51,13 +54,22 @@ class Tank:
         # ---------------------------
         self.bullets = []
         self.shoot_cooldown = 0.0
+        self.flash_duration = 0.1  # Thời gian flash khi bắn
+        self.flash_timer = 0.0
 
         # ---------------------------
         # Explosion and Flash Effects
         # ---------------------------
         self.explosions = []  # Danh sách hiệu ứng nổ
-        self.flash_duration = 0.1  # Thời gian flash khi bắn
-        self.flash_timer = 0.0
+        self.explosion_image = pygame.image.load("assets/explosion2.png").convert_alpha()
+        self.death_timer = 0.0
+
+        self.grow_time = 0.4
+        self.hold_time = 1.4
+        self.fade_time = 0.7
+        self.death_duration = self.grow_time + self.hold_time + self.fade_time
+        # self.death_duration = 1.0  # thời gian hiệu ứng
+        self.is_dying = False
 
         # ---------------------------
         # Sounds
@@ -188,11 +200,21 @@ class Tank:
 
         self.bullets = [b for b in self.bullets if b.alive]
 
+        for effect in self.effects:
+            effect.update(dt)
+
+        self.effects = [e for e in self.effects if not e.is_dead()]
+
         if self.flash_timer > 0:
             # self.flash_timer = max(0.0, self.flash_timer - dt)
             self.flash_timer -= dt
 
         self.explosions = [(pos, timer + dt) for pos, timer in self.explosions if timer + dt < 5.0]
+        if self.is_dying:
+            self.death_timer += dt
+            if self.death_timer >= self.death_duration:
+                self.alive = False
+                # self.death_timer += dt
 
     def shoot(self):
         # Use same direction convention as movement (0 degrees = up)
@@ -216,12 +238,19 @@ class Tank:
         self.shoot_sound.play()  # Phát âm thanh bắn
 
     def take_damage(self):
+        self.effects.append(HeartParticle(self.position.copy()))  # Thêm hiệu ứng trái tim khi bị bắn trúng
+
         self.health -= 20
         self.hit_sound.play()
-        if self.health <= 0:
-            self.explosions.append((self.position.copy(), 0))  # Thêm hiệu ứng nổ
+        if self.health <= 0 and not self.is_dying:
+            self.is_dying = True
+            # self.alive = False  # Vẫn alive trong quá trình hiệu ứng nổ, sẽ set False sau khi hiệu ứng kết thúc
+            self.death_timer = 0.0
             self.explosion_sound.play()
-            self.alive = False
+        # if self.health <= 0:
+        #     self.explosions.append((self.position.copy(), 0))  # Thêm hiệu ứng nổ
+        #     self.explosion_sound.play()
+        #     self.alive = False
             # self.explosions.append((self.position.copy(), 0))  # Thêm hiệu ứng nổ
             # self.explosion_sound.play()
 
@@ -234,6 +263,61 @@ class Tank:
             self.position.x + offset.x,
             self.position.y + offset.y,
         )
+        # Nếu đang chết → vẽ explosion animation
+        if self.is_dying:
+            t = self.death_timer
+            progress = min(1.0, t / self.death_duration)
+
+            # -----------------
+            # SCALE + ALPHA đồng bộ explosion
+            # -----------------
+            if t < self.grow_time:
+                grow_progress = t / self.grow_time
+                scale = 0.5 + grow_progress * 1.5
+                alpha = 255
+
+            elif t < self.grow_time + self.hold_time:
+                scale = 2.0
+                alpha = 255
+
+            else:
+                fade_progress = (t - self.grow_time - self.hold_time) / self.fade_time
+                scale = 2.0
+                alpha = max(0, 255 * (1 - fade_progress))
+
+            size = int(self.radius * 4 * scale)
+
+            explosion = pygame.transform.scale(
+                self.explosion_image,
+                (size, size)
+            )
+            explosion.set_alpha(alpha)
+
+            rect = explosion.get_rect(center=center)
+            screen.blit(explosion, rect)
+
+            # -----------------
+            # BOOM text (sync 100%)
+            # -----------------
+            font_size = int(35 * scale)
+            boom_font = pygame.font.Font("assets/fonts/Star Crush.ttf", font_size)
+
+            text = "BOOM"
+            text_surface = boom_font.render(text, True, (255, 70, 70))
+            text_surface.set_alpha(alpha)
+
+            outline_surface = boom_font.render(text, True, (0, 0, 0))
+            outline_surface.set_alpha(alpha)
+
+            text_rect = text_surface.get_rect(center=center)
+
+            screen.blit(outline_surface, text_rect.move(-3, 0))
+            screen.blit(outline_surface, text_rect.move(3, 0))
+            screen.blit(outline_surface, text_rect.move(0, -3))
+            screen.blit(outline_surface, text_rect.move(0, 3))
+            screen.blit(text_surface, text_rect)
+
+            return
 
         # Tính toán vị trí mới cho turret
         # --- BODY ---
@@ -254,6 +338,10 @@ class Tank:
         # Draw bullets
         for bullet in self.bullets:
             bullet.render(screen, offset)
+
+        # Draw effects
+        for effect in self.effects:
+            effect.draw(screen)
 
         # Hiển thị hiệu ứng nổ
         for pos, timer in self.explosions:

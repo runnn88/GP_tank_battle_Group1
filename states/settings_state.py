@@ -7,6 +7,9 @@ from utils.display_manager import apply_display_settings
 class SettingsState(BaseState):
     def __init__(self, state_machine, previous_state=None):
         super().__init__(state_machine)
+        self.tab_rects = []
+        self.option_rects = []
+
         self.previous_state = previous_state
 
         self.tab = 0  # 0 = Settings, 1 = Keybinds
@@ -14,12 +17,14 @@ class SettingsState(BaseState):
         self.waiting_for_key = None
 
         self.tabs = ["SETTINGS", "KEYBINDS"]
+        self.dragging_volume = False
 
         self.game_options = [
             "Independent Turret",
             "Bullet Can Hit Self",
             "Resolution",
-            "Fullscreen"
+            "Fullscreen",
+            "Master Volume"
         ]
 
         self.keybind_options = [
@@ -65,7 +70,21 @@ class SettingsState(BaseState):
                     self.state_machine.current_state = self.previous_state
 
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                self.handle_mouse_click(pygame.mouse.get_pos())
+                # self.handle_mouse_click(pygame.mouse.get_pos())
+                mouse_pos = pygame.mouse.get_pos()
+
+                # Check volume slider drag
+                if self.tab == 0 and self.selected == 4:
+                    self.dragging_volume = True
+
+                self.handle_mouse_click(mouse_pos)
+
+            if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                self.dragging_volume = False
+
+            if event.type == pygame.MOUSEMOTION:
+                if self.dragging_volume:
+                    self.update_volume_with_mouse(event.pos)
 
         return True
 
@@ -81,30 +100,30 @@ class SettingsState(BaseState):
     # =========================================================
     # MOUSE
     # =========================================================
-
     def handle_mouse_click(self, mouse_pos):
-        x, y = mouse_pos
-
-        # --- Check Tab Click ---
-        for i in range(len(self.tabs)):
-            tab_rect = pygame.Rect(100 + i * 200, 40, 180, 40)
-            if tab_rect.collidepoint(mouse_pos):
+        # --- TAB CLICK ---
+        for i, rect in enumerate(self.tab_rects):
+            if rect.collidepoint(mouse_pos):
                 self.tab = i
                 self.selected = 0
                 return
 
-        # --- Check Option Click ---
-        start_y = 140
-        spacing = 45
-
-        options = self.game_options if self.tab == 0 else self.keybind_options
-
-        for i in range(len(options)):
-            option_rect = pygame.Rect(100, start_y + i * spacing, 600, 40)
-            if option_rect.collidepoint(mouse_pos):
+        # --- OPTION CLICK ---
+        for i, rect in enumerate(self.option_rects):
+            if rect.collidepoint(mouse_pos):
                 self.selected = i
                 self.activate_option()
-                break
+                return
+            
+    def update_volume_with_mouse(self, mouse_pos):
+        x, y = mouse_pos
+
+        slider_x = 860 - 200
+        slider_width = 180
+
+        relative_x = max(0, min(slider_width, x - slider_x))
+        settings.master_volume = relative_x / slider_width
+        settings.apply_audio_settings()
 
     # =========================================================
     # UPDATE
@@ -152,87 +171,141 @@ class SettingsState(BaseState):
     # =========================================================
     # RENDER
     # =========================================================
-
     def render(self, screen):
-        screen.fill((25, 25, 25))
-        font = pygame.font.SysFont(None, 36)
+        screen.fill((35, 30, 45))  # pastel tím đậm nền
 
-        # -------------------------
-        # Draw Tabs
-        # -------------------------
+        title_font = pygame.font.Font("assets/fonts/Star Crush.ttf", 48)
+        font = pygame.font.SysFont(None, 34)
+
+        # =====================================================
+        # TITLE
+        # =====================================================
+        title = title_font.render("SETTINGS", True, (255, 180, 255))
+        screen.blit(title, title.get_rect(center=(screen.get_width() // 2, 60)))
+
+        # =====================================================
+        # TABS (Cute Rounded)
+        # =====================================================
+        self.tab_rects = []
+
         for i, tab_name in enumerate(self.tabs):
 
-            tab_rect = pygame.Rect(100 + i * 200, 40, 180, 40)
+            tab_rect = pygame.Rect(250 + i * 220, 110, 200, 50)
+            self.tab_rects.append(tab_rect)
 
-            color = (80, 80, 80)
             if i == self.tab:
-                color = (150, 150, 150)
+                color = (200, 160, 255)
+            else:
+                color = (90, 70, 120)
 
-            pygame.draw.rect(screen, color, tab_rect)
-            text = font.render(tab_name, True, (0, 0, 0))
-            screen.blit(text, (tab_rect.x + 20, tab_rect.y + 5))
+            pygame.draw.rect(screen, color, tab_rect, border_radius=25)
 
-        # -------------------------
-        # Draw Options
-        # -------------------------
+            text = font.render(tab_name, True, (40, 20, 60))
+            screen.blit(text, text.get_rect(center=tab_rect.center))
+
+        # =====================================================
+        # OPTIONS PANEL (Glass Style)
+        # =====================================================
+        panel_rect = pygame.Rect(180, 200, 760, 350)
+
+        glass = pygame.Surface(panel_rect.size, pygame.SRCALPHA)
+        glass.fill((255, 255, 255, 30))  # transparency
+        screen.blit(glass, panel_rect.topleft)
+
+        pygame.draw.rect(screen, (180, 150, 255), panel_rect, 2, border_radius=20)
+
         options = self.game_options if self.tab == 0 else self.keybind_options
-        
-        start_y = 140
-        spacing = 50
-        label_x = 140
-        value_x = 650  # right-aligned value column
+
+        start_y = 240
+        spacing = 60
+        label_x = 240
+        value_x = 860
+
+        self.option_rects = []
 
         for i, option in enumerate(options):
-
             y = start_y + i * spacing
 
-            # --------------------------------------------------
-            # Selection Highlight
-            # --------------------------------------------------
+            option_rect = pygame.Rect(200, y - 10, 720, 50)
+            self.option_rects.append(option_rect)
+
             is_selected = (i == self.selected)
 
-            label_color = (255, 255, 0) if is_selected else (220, 220, 220)
+            # Glow highlight
+            if is_selected:
+                highlight = pygame.Rect(200, y - 10, 720, 50)
+                pygame.draw.rect(screen, (255, 200, 255), highlight, 2, border_radius=20)
 
-            # --------------------------------------------------
+            label_color = (255, 220, 255) if is_selected else (220, 200, 255)
+            label_surface = font.render(option, True, label_color)
+            screen.blit(label_surface, (label_x, y))
+
+            # ============================
             # SETTINGS TAB
-            # --------------------------------------------------
+            # ============================
             if self.tab == 0:
 
-                # Determine value text + color
-                if option == "Independent Turret":
+                enabled = None  # reset mỗi vòng lặp
+
+                if i == 0:
                     enabled = settings.independent_turret
-                    value_text = "ON" if enabled else "OFF"
-                    value_color = (0, 255, 120) if enabled else (255, 80, 80)
 
-                elif option == "Bullet Can Hit Self":
+                elif i == 1:
                     enabled = settings.bullet_can_hit_self
-                    value_text = "ON" if enabled else "OFF"
-                    value_color = (0, 255, 120) if enabled else (255, 80, 80)
 
-                elif option == "Resolution":
+                elif i == 2:  # Resolution
                     res = settings.windowed_resolutions[
                         settings.current_resolution_index
                     ]
                     value_text = f"{res[0]} x {res[1]}"
-                    value_color = (180, 180, 255)
+                    value_surface = font.render(value_text, True, (180, 200, 255))
+                    screen.blit(value_surface,
+                                value_surface.get_rect(right=value_x, centery=y + 15))
+                    continue
 
-                elif option == "Fullscreen":
+                elif i == 3:
                     enabled = settings.fullscreen
-                    value_text = "ON" if enabled else "OFF"
-                    value_color = (0, 255, 120) if enabled else (255, 80, 80)
 
-                # Render label
-                label_surface = font.render(option, True, label_color)
-                screen.blit(label_surface, (label_x, y))
+                elif i == 4:  # Master Volume
+                    volume = settings.master_volume
+                    percent = int(volume * 100)
 
-                # Render value (right aligned)
-                value_surface = font.render(value_text, True, value_color)
-                value_rect = value_surface.get_rect(right=value_x, centery=y + 12)
-                screen.blit(value_surface, value_rect)
+                    slider_rect = pygame.Rect(value_x - 200, y + 5, 180, 8)
+                    pygame.draw.rect(screen, (80, 70, 100), slider_rect, border_radius=4)
 
-            # --------------------------------------------------
+                    fill_width = int(180 * volume)
+                    fill_rect = pygame.Rect(value_x - 200, y + 5, fill_width, 8)
+                    pygame.draw.rect(screen, (200, 160, 255), fill_rect, border_radius=4)
+
+                    knob_x = slider_rect.x + fill_width
+                    pygame.draw.circle(screen, (255, 255, 255),
+                                    (knob_x, slider_rect.centery), 10)
+
+                    value_surface = font.render(f"{percent}%", True, (220, 200, 255))
+                    screen.blit(value_surface,
+                                value_surface.get_rect(right=value_x, centery=y + 10))
+
+                    continue
+
+                # 👇 CHỈ vẽ pill nếu enabled không phải None
+                if enabled is not None:
+                    pill_rect = pygame.Rect(value_x - 120, y - 5, 100, 35)
+
+                    if enabled:
+                        pygame.draw.rect(screen, (160, 120, 255),
+                                        pill_rect, border_radius=20)
+                        circle_x = pill_rect.right - 18
+                    else:
+                        pygame.draw.rect(screen, (80, 70, 100),
+                                        pill_rect, border_radius=20)
+                        circle_x = pill_rect.left + 18
+
+                    pygame.draw.circle(screen, (255, 255, 255),
+                                    (circle_x, pill_rect.centery), 14)
+
+            # ============================
             # KEYBINDS TAB
-            # --------------------------------------------------
+            # ============================
             else:
                 key_map = [
                     "p1_turret_left",
@@ -241,17 +314,30 @@ class SettingsState(BaseState):
                     "p2_turret_right",
                 ]
 
-                key_name = pygame.key.name(settings.keybinds[key_map[i]]).upper()
+                key_name = pygame.key.name(
+                    settings.keybinds[key_map[i]]
+                ).upper()
 
-                label_surface = font.render(option, True, label_color)
-                screen.blit(label_surface, (label_x, y))
+                capsule_rect = pygame.Rect(value_x - 140, y - 8, 120, 38)
 
-                key_surface = font.render(f"[ {key_name} ]", True, (100, 200, 255))
-                key_rect = key_surface.get_rect(right=value_x, centery=y + 12)
-                screen.blit(key_surface, key_rect)
-        # -------------------------
+                pygame.draw.rect(screen,
+                                (120, 100, 180),
+                                capsule_rect,
+                                border_radius=18)
+
+                key_surface = font.render(key_name, True, (255, 255, 255))
+                screen.blit(key_surface,
+                            key_surface.get_rect(center=capsule_rect.center))
+
+        # =====================================================
         # Waiting For Key
-        # -------------------------
+        # =====================================================
         if self.waiting_for_key:
-            wait_text = font.render("Press new key...", True, (255, 80, 80))
-            screen.blit(wait_text, (120, 420))
+            wait_font = pygame.font.SysFont(None, 40)
+            wait_text = wait_font.render(
+                "Press new key...",
+                True,
+                (255, 150, 200)
+            )
+            screen.blit(wait_text,
+                        wait_text.get_rect(center=(screen.get_width() // 2, 580)))
