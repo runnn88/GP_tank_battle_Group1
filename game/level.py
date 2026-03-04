@@ -17,15 +17,15 @@ class Level:
         # self.background = pygame.image.load("assets/BG/content.png").convert()
 
         # Load textures
-        self.ground_image = pygame.image.load("assets/road1.png").convert_alpha()
+        self.ground_image = pygame.image.load("assets/image/road1.png").convert_alpha()
         self.ground_image = pygame.transform.scale(
             self.ground_image, (TILE_SIZE, TILE_SIZE)
         )
-        wall_image = pygame.image.load("assets/wall1.png").convert_alpha()
+        wall_image = pygame.image.load("assets/image/wall1.png").convert_alpha()
         self.wall_image = pygame.transform.scale(
             wall_image, (TILE_SIZE, TILE_SIZE)
         )
-        destructible_wall_image = pygame.image.load("assets/road1.png").convert_alpha()
+        destructible_wall_image = pygame.image.load("assets/image/road1.png").convert_alpha()
         self.destructible_wall_image = pygame.transform.scale(
             destructible_wall_image, (TILE_SIZE, TILE_SIZE)
         )

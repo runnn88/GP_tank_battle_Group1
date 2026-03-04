@@ -1,5 +1,7 @@
 import pygame
 import math
+import random
+
 from config import (
     TANK_SPEED,
     ROTATION_SPEED,
@@ -27,6 +29,7 @@ class Tank:
         self.position = pygame.Vector2(position)
         self.angle = 0
         self.turret_angle = 0
+        self.turret_length = 15  # Khoảng cách từ tâm tank đến đầu nòng, dùng để tính vị trí spawn đạn và hiệu ứng flash chính xác
 
         # ---------------------------
         # Controls
@@ -61,7 +64,7 @@ class Tank:
         # Explosion and Flash Effects
         # ---------------------------
         self.explosions = []  # Danh sách hiệu ứng nổ
-        self.explosion_image = pygame.image.load("assets/explosion2.png").convert_alpha()
+        self.explosion_image = pygame.image.load("assets/image/explosion2.png").convert_alpha()
         self.death_timer = 0.0
 
         self.grow_time = 0.4
@@ -78,13 +81,32 @@ class Tank:
         self.hit_sound = pygame.mixer.Sound("assets/sounds/shoot.mp3")
         self.explosion_sound = pygame.mixer.Sound("assets/sounds/explosion.mp3")
 
+        # ---------------------------
+        # Power-ups
+        # ---------------------------
+        self.active_powerups = {}
+        self.base_speed = TANK_SPEED
+        self.shield_active = False
+
+        # ---------------------------
+        # Visual Feedback Effects
+        # ---------------------------
+        self.pickup_flash_timer = 0.0
+        self.pickup_flash_duration = 0.4
+        self.sparks = []  # List of spark particles for shooting effect 
+
+        self.shield_warning_time = 1.5   # thời gian trước khi hết để nhấp nháy
+
+        # Orbit power-up visuals
+        self.orbit_effects = []  # list các icon xoay quanh
+
         # Load sprites for body and turret
-        if color == (0, 200, 0):
-            body_path = "assets/body_5.png"
-            turret_path = "assets/blue_turret.png"
+        if color == (150, 200, 255):
+            body_path = "assets/image/body_5.png"
+            turret_path = "assets/image/blue_turret.png"
         else:
-            body_path = "assets/body_6.png"
-            turret_path = "assets/pink_turret_1.png"
+            body_path = "assets/image/body_6.png"
+            turret_path = "assets/image/pink_turret_1.png"
 
         base_size = int(self.radius * 2.6)
         self.body_image = pygame.image.load(body_path).convert_alpha()
@@ -100,7 +122,29 @@ class Tank:
         scale = (base_size * 0.9) / max_side
         new_size = (int(orig_w * scale), int(orig_h * scale))
         self.turret_image = pygame.transform.scale(self.turret_image, new_size)
-        
+
+    def apply_powerup(self, type_, duration):
+        self.active_powerups[type_] = duration
+        self.pickup_flash_timer = self.pickup_flash_duration  # Kích hoạt hiệu ứng flash khi nhặt power-up
+
+        if type_ == "speed":
+            self.speed = self.base_speed * 1.5
+            self.create_orbit_effect(type_)
+
+        elif type_ == "shield":
+            self.shield_active = True
+
+        elif type_ == "triple":
+            self.create_orbit_effect(type_)
+
+    def create_orbit_effect(self, type_):
+        count = 4
+        for i in range(count):
+            self.orbit_effects.append({
+                "type": type_,
+                "angle": (360 / count) * i,
+                "radius": self.radius + 25
+            })
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
@@ -116,6 +160,27 @@ class Tank:
                     self.shoot_cooldown = BULLET_COOLDOWN
 
     def update(self, dt, walls, enemy):
+        # Update active powerups
+        expired = []
+
+        # Pickup flash countdown
+        if self.pickup_flash_timer > 0:
+            self.pickup_flash_timer -= dt
+
+        for key in self.active_powerups:
+            self.active_powerups[key] -= dt
+            if self.active_powerups[key] <= 0:
+                expired.append(key)
+
+        for key in expired:
+            del self.active_powerups[key]
+
+            if key == "speed":
+                self.speed = self.base_speed
+
+            elif key == "shield":
+                self.shield_active = False
+        
         keys = pygame.key.get_pressed() 
         # --- BODY ROTATION ---
         if keys[self.controls["left"]]:
@@ -209,12 +274,88 @@ class Tank:
             # self.flash_timer = max(0.0, self.flash_timer - dt)
             self.flash_timer -= dt
 
+        for spark in self.sparks[:]:
+            spark["timer"] += dt
+            spark["pos"] += spark["vel"] * dt
+            spark["vel"] *= 0.9  # chậm dần
+            spark["rot"] += spark["rot_speed"] * dt
+
+            if spark["timer"] >= spark["life"]:
+                self.sparks.remove(spark)
+
         self.explosions = [(pos, timer + dt) for pos, timer in self.explosions if timer + dt < 5.0]
         if self.is_dying:
             self.death_timer += dt
             if self.death_timer >= self.death_duration:
                 self.alive = False
                 # self.death_timer += dt
+
+        # Update orbit effects
+        new_orbits = []
+        for effect in self.orbit_effects:
+            if effect["type"] in self.active_powerups:
+                effect["angle"] += 180 * dt  # tốc độ xoay
+                new_orbits.append(effect)
+
+        self.orbit_effects = new_orbits
+
+    def draw_shield(self, screen, center):
+        remaining = self.active_powerups.get("shield", 0)
+
+        # Nếu gần hết → nhấp nháy
+        blink = False
+        if remaining <= self.shield_warning_time:
+            blink = int(remaining * 8) % 2 == 0
+
+        if blink:
+            return
+
+        radius = int(self.radius * 1.8)
+
+        shield_surface = pygame.Surface((radius*2+20, radius*2+20), pygame.SRCALPHA)
+        bubble_center = (shield_surface.get_width()//2,
+                        shield_surface.get_height()//2)
+
+        # Glow
+        for i in range(6, 0, -1):
+            pygame.draw.circle(
+                shield_surface,
+                (180, 220, 255, 25),
+                bubble_center,
+                radius + i
+            )
+
+        # Main bubble
+        pygame.draw.circle(
+            shield_surface,
+            (180, 220, 255, 80),
+            bubble_center,
+            radius
+        )
+
+        # Outline
+        pygame.draw.circle(
+            shield_surface,
+            (255, 255, 255, 140),
+            bubble_center,
+            radius,
+            2
+        )
+
+        # Highlight
+        pygame.draw.circle(
+            shield_surface,
+            (255, 255, 255, 60),
+            (bubble_center[0] - radius//3,
+            bubble_center[1] - radius//3),
+            radius//3
+        )
+
+        screen.blit(
+            shield_surface,
+            (center.x - shield_surface.get_width()//2,
+            center.y - shield_surface.get_height()//2)
+        )
 
     def shoot(self):
         # Use same direction convention as movement (0 degrees = up)
@@ -231,15 +372,80 @@ class Tank:
         # --- Bullet spawns at the end of the turret barrel, not the center of the tank ---
         barrel_length = self.radius + 15
         spawn = self.position + direction * barrel_length
-        self.bullets.append(Bullet(spawn, direction, self))
+        
+        if "triple" in self.active_powerups:
+            angles = [-10, 0, 10]
+            for offset in angles:
+                new_rad = math.radians(self.turret_angle + offset - 90)
+                new_direction = pygame.Vector2(
+                    math.cos(new_rad),
+                    math.sin(new_rad),
+                )
+
+                new_spawn = self.position + new_direction * barrel_length
+                new_bullet = Bullet(new_spawn, new_direction, self)
+                self.bullets.append(new_bullet)
+        else:
+            new_bullet = Bullet(spawn, direction, self)
+            self.bullets.append(new_bullet)
 
         # --- Trigger flash effect and sound ---
         self.flash_timer = self.flash_duration  # Kích hoạt hiệu ứng flash
+        
+        # --- Muzzle position ---
+        # Direction giống đạn (đã có sẵn phía trên)
+        # shoot_rad = math.radians(self.turret_angle - 90)
+        # direction = pygame.Vector2(
+        #     math.cos(shoot_rad),
+        #     math.sin(shoot_rad)
+        # )
+
+        # # ⭐ TÍNH ĐẦU NÒNG CHUẨN THEO SPRITE
+        # muzzle_offset = pygame.Vector2(0, -self.turret_length)
+        # muzzle_offset = muzzle_offset.rotate(-self.turret_angle)
+
+        # muzzle_pos = self.position + muzzle_offset
+        # # Center tank
+        # center = pygame.Vector2(self.position)
+
+        # # Direction giống đạn
+        # shoot_rad = math.radians(self.turret_angle - 90)
+        # direction = pygame.Vector2(
+        #     math.cos(shoot_rad),
+        #     math.sin(shoot_rad)
+        # )
+
+        # # Chiều dài nòng súng (tùy chỉnh cho khớp sprite)
+        # turret_length = 40  # thử 35–50 tùy sprite
+
+        # # muzzle_pos = center + direction * turret_length
+        # muzzle_pos = self.muzzle_world_pos # Vị trí đầu nòng đã tính trong render, để đồng bộ chính xác với sprite dù có xoay turret độc lập
+
+        # muzzle_pos = spawn
+        # --- Glitter spark effect ---
+        for _ in range(8):
+            angle_offset = random.uniform(-15, 15)
+            speed = random.uniform(120, 220)
+
+            spark_direction = direction.rotate(angle_offset)
+
+            self.sparks.append({
+                "pos": pygame.Vector2(spawn),
+                "vel": spark_direction * speed,
+                "life": 0.4,
+                "timer": 0,
+                "size": random.randint(3, 6),
+                "rot": random.uniform(0, 360),
+                "rot_speed": random.uniform(-360, 360)
+            })
+
         self.shoot_sound.play()  # Phát âm thanh bắn
 
     def take_damage(self):
+        if self.shield_active:
+            return
         self.effects.append(HeartParticle(self.position.copy()))  # Thêm hiệu ứng trái tim khi bị bắn trúng
-
+ 
         self.health -= 20
         self.hit_sound.play()
         if self.health <= 0 and not self.is_dying:
@@ -263,6 +469,12 @@ class Tank:
             self.position.x + offset.x,
             self.position.y + offset.y,
         )
+
+        # Pickup flash effect (white overlay)
+        flash_alpha = 0
+        if self.pickup_flash_timer > 0:
+            flash_alpha = int(120 * (self.pickup_flash_timer / self.pickup_flash_duration))
+        
         # Nếu đang chết → vẽ explosion animation
         if self.is_dying:
             t = self.death_timer
@@ -330,11 +542,131 @@ class Tank:
         turret_rect = rotated_turret.get_rect(center=center)
         screen.blit(rotated_turret, turret_rect.topleft)
 
-        if self.flash_timer > 0:
-            flash_pos = center + pygame.Vector2(math.cos(math.radians(self.angle - 90)),
-                                                math.sin(math.radians(self.angle - 90))) * (self.radius + 15)
-            pygame.draw.circle(screen, (255, 255, 0), (int(flash_pos.x), int(flash_pos.y)), 5)
+        # Lấy vị trí đầu nòng theo sprite đã rotate
+        # muzzle_offset = pygame.Vector2(0, -self.turret_length)
+        # muzzle_offset = muzzle_offset.rotate(-self.turret_angle)
 
+        # self.muzzle_world_pos = pygame.Vector2(self.position) + muzzle_offset
+
+        if flash_alpha > 0:
+            flash_surface = pygame.Surface((self.radius*4, self.radius*4), pygame.SRCALPHA)
+            pygame.draw.circle(
+                flash_surface,
+                (255, 255, 255, flash_alpha),
+                (flash_surface.get_width()//2,
+                flash_surface.get_height()//2),
+                self.radius*1.5
+            )
+            screen.blit(
+                flash_surface,
+                (center.x - flash_surface.get_width()//2,
+                center.y - flash_surface.get_height()//2)
+            )
+
+        if self.shield_active:
+            self.draw_shield(screen, center)
+
+        # Draw orbit effects
+        for effect in self.orbit_effects:
+            angle_rad = math.radians(effect["angle"])
+            orbit_pos = center + pygame.Vector2(
+                math.cos(angle_rad),
+                math.sin(angle_rad)
+            ) * effect["radius"]
+
+            # 🔵 Lấy màu tank
+            base_color = self.color
+
+            # Làm sáng nhẹ cho nổi bật
+            bright_color = (
+                min(base_color[0] + 40, 255),
+                min(base_color[1] + 40, 255),
+                min(base_color[2] + 40, 255)
+            )
+
+            if effect["type"] == "speed":
+                # Mũi tên
+                points = [
+                    (orbit_pos.x, orbit_pos.y - 7),
+                    (orbit_pos.x + 7, orbit_pos.y + 7),
+                    (orbit_pos.x - 7, orbit_pos.y + 7)
+                ]
+                pygame.draw.polygon(screen, bright_color, points)
+
+            elif effect["type"] == "triple":
+                # 3 viên đạn mini
+                pygame.draw.circle(screen, bright_color,
+                                (int(orbit_pos.x), int(orbit_pos.y)), 5)
+
+            # if effect["type"] == "speed":
+            #     color = (180, 220, 255)
+            #     # vẽ mũi tên
+            #     points = [
+            #         (orbit_pos.x, orbit_pos.y - 6),
+            #         (orbit_pos.x + 6, orbit_pos.y + 6),
+            #         (orbit_pos.x - 6, orbit_pos.y + 6)
+            #     ]
+            #     pygame.draw.polygon(screen, color, points)
+
+            # elif effect["type"] == "triple":
+            #     color = (255, 200, 200)
+            #     pygame.draw.circle(screen, color,
+            #                     (int(orbit_pos.x), int(orbit_pos.y)), 5)
+
+        for spark in self.sparks:
+            progress = spark["timer"] / spark["life"]
+            alpha = max(0, 255 * (1 - progress))
+
+            size = spark["size"]
+
+            # Làm màu sáng hơn màu tank
+            base = self.color
+            color = (
+                min(base[0] + 80, 255),
+                min(base[1] + 80, 255),
+                min(base[2] + 80, 255)
+            )
+
+            # Tạo surface riêng để xoay + alpha
+            sparkle_surface = pygame.Surface((size*3, size*3), pygame.SRCALPHA)
+
+            # Vẽ ngôi sao nhỏ (4 cánh)
+            center = size * 1.5
+            pygame.draw.line(
+                sparkle_surface,
+                (*color, int(alpha)),
+                (center - size, center),
+                (center + size, center),
+                2
+            )
+            pygame.draw.line(
+                sparkle_surface,
+                (*color, int(alpha)),
+                (center, center - size),
+                (center, center + size),
+                2
+            )
+            # tiny center glow
+            pygame.draw.circle(
+                sparkle_surface,
+                (255, 255, 255, int(alpha)),
+                (int(center), int(center)),
+                1
+            )
+
+            # Xoay
+            rotated = pygame.transform.rotate(sparkle_surface, spark["rot"])
+            rect = rotated.get_rect(center=spark["pos"])
+
+            screen.blit(rotated, rect)
+
+            
+        
+        #     flash_pos = center + pygame.Vector2(math.cos(math.radians(self.angle - 90)),
+        #                                         math.sin(math.radians(self.angle - 90))) * (self.radius + 15)
+        #     pygame.draw.circle(screen, (255, 255, 0), (int(flash_pos.x), int(flash_pos.y)), 5)
+
+        
         # Draw bullets
         for bullet in self.bullets:
             bullet.render(screen, offset)
