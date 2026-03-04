@@ -68,11 +68,11 @@ class Tank:
 
         # Load sprites for body and turret
         if color == (0, 200, 0):
-            body_path = "assets/body_1.png"
-            turret_path = "assets/turret_1.png"
+            body_path = "assets/body_5.png"
+            turret_path = "assets/turret_5.png"
         else:
-            body_path = "assets/body_2.png"
-            turret_path = "assets/turret_2.png"
+            body_path = "assets/body_6.png"
+            turret_path = "assets/turret_6.png"
 
         base_size = int(self.radius * 2.6)
         self.body_image = pygame.image.load(body_path).convert_alpha()
@@ -104,7 +104,24 @@ class Tank:
                     self.shoot_cooldown = BULLET_COOLDOWN
 
     def update(self, dt, walls, enemy):
-        keys = pygame.key.get_pressed()
+        keys = pygame.key.get_pressed() 
+        # --- BODY ROTATION ---
+        if keys[self.controls["left"]]:
+            self.angle -= ROTATION_SPEED * dt
+        if keys[self.controls["right"]]:
+            self.angle += ROTATION_SPEED * dt
+
+        # --- TURRET ROTATION ---
+        if settings.independent_turret:
+            if self.turret_left_key_name:
+                if keys[settings.keybinds[self.turret_left_key_name]]:
+                    self.turret_angle -= ROTATION_SPEED * dt
+
+            if self.turret_right_key_name:
+                if keys[settings.keybinds[self.turret_right_key_name]]:
+                    self.turret_angle += ROTATION_SPEED * dt
+        else:
+            self.turret_angle = self.angle
 
         # Update shooting cooldown
         if self.shoot_cooldown > 0:
@@ -167,16 +184,7 @@ class Tank:
                             self.take_damage()
                             bullet.alive = False
                             bullet.sparks.append((bullet.position.copy(), 0))
-
-                        # --- If independent turret enabled, check if bullet hits own turret ---
-                        if settings.independent_turret:
-                            if keys[settings.keybinds[self.turret_left_key_name]]:
-                                self.turret_angle -= ROTATION_SPEED * dt
-
-                            if keys[settings.keybinds[self.turret_right_key_name]]:
-                                self.turret_angle += ROTATION_SPEED * dt
-                        else:
-                            self.turret_angle = self.angle
+                        
 
         self.bullets = [b for b in self.bullets if b.alive]
 
@@ -188,7 +196,7 @@ class Tank:
 
     def shoot(self):
         # Use same direction convention as movement (0 degrees = up)
-        shoot_rad = math.radians(self.angle - 90)
+        shoot_rad = math.radians(self.turret_angle - 90)
         direction = pygame.Vector2(
             math.cos(shoot_rad),
             math.sin(shoot_rad),
@@ -227,14 +235,15 @@ class Tank:
             self.position.y + offset.y,
         )
 
-        # Rotate and draw body sprite
+        # Tính toán vị trí mới cho turret
+        # --- BODY ---
         rotated_body = pygame.transform.rotate(self.body_image, -self.angle)
-        body_rect = rotated_body.get_rect(center=(center.x, center.y))
+        body_rect = rotated_body.get_rect(center=center)
         screen.blit(rotated_body, body_rect.topleft)
 
-        # Rotate and draw turret sprite (independent if you later add turret_angle)
-        rotated_turret = pygame.transform.rotate(self.turret_image, -self.angle)
-        turret_rect = rotated_turret.get_rect(center=(center.x, center.y))
+        # --- TURRET (independent) ---
+        rotated_turret = pygame.transform.rotate(self.turret_image, -self.turret_angle)
+        turret_rect = rotated_turret.get_rect(center=center)
         screen.blit(rotated_turret, turret_rect.topleft)
 
         if self.flash_timer > 0:

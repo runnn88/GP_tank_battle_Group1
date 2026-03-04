@@ -13,14 +13,21 @@ class Level:
         self.width = 0
         self.height = 0
 
+        # Background
+        # self.background = pygame.image.load("assets/BG/content.png").convert()
+
         # Load textures
-        self.ground_image = pygame.image.load("assets/background.png").convert()
+        self.ground_image = pygame.image.load("assets/road1.png").convert_alpha()
         self.ground_image = pygame.transform.scale(
             self.ground_image, (TILE_SIZE, TILE_SIZE)
         )
-        wall_image = pygame.image.load("assets/wall.png").convert_alpha()
+        wall_image = pygame.image.load("assets/wall1.png").convert_alpha()
         self.wall_image = pygame.transform.scale(
             wall_image, (TILE_SIZE, TILE_SIZE)
+        )
+        destructible_wall_image = pygame.image.load("assets/road1.png").convert_alpha()
+        self.destructible_wall_image = pygame.transform.scale(
+            destructible_wall_image, (TILE_SIZE, TILE_SIZE)
         )
 
         # Decide generation mode
@@ -39,11 +46,10 @@ class Level:
             self.width = max(w.rect.right for w in self.walls)
             self.height = max(w.rect.bottom for w in self.walls)
         else:
-            # Fallback: use map rows/cols
-            # self.width = len(self.rows[0].strip()) * TILE_SIZE if self.rows else 0
-            # self.height = len(self.rows) * TILE_SIZE
             self.width = settings.map_width * TILE_SIZE
             self.height = settings.map_height * TILE_SIZE
+
+        # self.background = pygame.transform.scale(self.background, (self.width, self.height))
 
     # ======================================================
     # FILE LOADING 
@@ -82,6 +88,10 @@ class Level:
                 # Detect Wall
                 if row[col_index] == "W":
                     self.walls.append(Wall(x, y, TILE_SIZE, image=self.wall_image))
+
+                # Detect Destructible Wall
+                if row[col_index] == "D":
+                    self.walls.append(Wall(x, y, TILE_SIZE, destructible=True, image=self.destructible_wall_image))
 
                 col_index += 1
     
@@ -135,12 +145,19 @@ class Level:
         )
 
     def render(self, screen, offset=pygame.Vector2(0, 0)):
+        # screen.blit(self.background, (offset.x, offset.y))
+        # screen.blit(self.background, (0, 0))
+
+
         # Draw tiled background for entire level area
-        for row_index, row in enumerate(self.rows):
-            for col_index in range(len(row)):
-                x = col_index * TILE_SIZE + offset.x
-                y = row_index * TILE_SIZE + offset.y
-                screen.blit(self.ground_image, (x, y))
+        # for row_index, row in enumerate(self.rows):
+        #     for col_index in range(len(row)):
+        #         # x = col_index * TILE_SIZE + offset.x
+        #         # y = row_index * TILE_SIZE + offset.y
+        #         # screen.blit(self.ground_image, (x, y))
+        #         x = int(col_index * TILE_SIZE + offset.x)  # Làm tròn tọa độ x
+        #         y = int(row_index * TILE_SIZE + offset.y)  # Làm tròn tọa độ y
+        #         screen.blit(self.ground_image, (x, y))
 
         # Draw walls on top
         for wall in self.walls:

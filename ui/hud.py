@@ -1,5 +1,5 @@
 import pygame
-from config import SCREEN_WIDTH, SCREEN_HEIGHT, UI_SIDE_WIDTH, MAX_BULLETS
+from config import SCREEN_WIDTH, SCREEN_HEIGHT, UI_SIDE_WIDTH, MAX_BULLETS, TOP_UI_HEIGHT
 
 
 class HUD:
@@ -8,13 +8,15 @@ class HUD:
         # e.g. put a file at assets/ui_font.ttf and it will be used automatically.
         try:
             self.font = pygame.font.Font("assets/ui_font.ttf", 22)
-            self.title_font = pygame.font.Font("assets/ui_font.ttf", 30)
+            self.title_font = pygame.font.Font("assets/fonts/Star Crush.ttf", 30)
             self.section_font = pygame.font.Font("assets/ui_font.ttf", 20)
         except Exception:
             # Windows-friendly defaults
             self.font = pygame.font.SysFont("bahnschrift", 22)
             self.title_font = pygame.font.SysFont("bahnschrift", 30, bold=True)
             self.section_font = pygame.font.SysFont("segoeui", 20)
+
+        self.time_left = 120.0  # Example timer for the top banner
 
     def _draw_missile(self, screen, center, active=True):
         """Draw a small missile icon (no image asset needed)."""
@@ -47,88 +49,180 @@ class HUD:
         pygame.draw.polygon(screen, outline, fin1, 1)
         pygame.draw.polygon(screen, outline, fin2, 1)
 
-    def render_player_panel(self, screen, player, is_left=True):
-        panel_rect = pygame.Rect(
-            0 if is_left else SCREEN_WIDTH - UI_SIDE_WIDTH,
-            0,
-            UI_SIDE_WIDTH,
-            SCREEN_HEIGHT,
-        )
+    def draw_bullet_icon(self, surface, center, active=True):
+        x, y = center
 
-        # Background frame
-        bg_color = (12, 12, 16)
-        border_color = (70, 70, 90)
-        inner_color = (20, 20, 28)
-        pygame.draw.rect(screen, bg_color, panel_rect)
-        pygame.draw.rect(screen, border_color, panel_rect, 3)
+        if active:
+            color = (255, 220, 120)
+        else:
+            color = (210, 210, 220)
 
-        inner_rect = panel_rect.inflate(-12, -12)
-        pygame.draw.rect(screen, inner_color, inner_rect, border_radius=10)
+        pygame.draw.circle(surface, color, (x, y), 8)
+        pygame.draw.circle(surface, (255, 255, 255), (x - 3, y - 3), 3)
 
-        # Title (Player 1 / Player 2)
-        title_text = "Player 1" if is_left else "Player 2"
-        title_color = (0, 220, 120) if is_left else (255, 80, 80)
-        title_surf = self.title_font.render(title_text, True, title_color)
-        title_rect = title_surf.get_rect(center=(inner_rect.centerx, inner_rect.top + 30))
-        screen.blit(title_surf, title_rect)
+    def update(self, dt):
+        if self.time_left > 0:
+            self.time_left -= dt
+            if self.time_left < 0:
+                self.time_left = 0
+    
+    def render(self, screen, p1, p2):      
+        def draw_glass_panel(surface, rect, border_color):
+            glass = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
+            # glass.fill((255, 255, 255, 180))  # trắng trong
 
-        # HP bar
-        bullets_left = MAX_BULLETS - len(player.bullets)
-        cooldown = getattr(player, "shoot_cooldown", 0.0)
+            pygame.draw.rect(
+                glass,
+                (255, 255, 255, 130),
+                glass.get_rect(),
+                border_radius=20
+            )
 
-        max_hp = 100
-        hp_ratio = max(0.0, min(1.0, player.health / max_hp))
+            # Vẽ border
+            pygame.draw.rect(
+                glass,
+                border_color,
+                glass.get_rect(),
+                3,
+                border_radius=20
+            )
 
-        bar_width = inner_rect.width - 40
-        bar_height = 16
-        bar_x = inner_rect.left + 20
-        bar_y = inner_rect.top + 72
+            surface.blit(glass, rect.topleft)
+        
+        def draw_trapezoid_timer(surface, center_x, top_y, width, height, color):
+            top_width = width
+            bottom_width = int(width * 0.6)
 
-        bg_bar_rect = pygame.Rect(bar_x, bar_y, bar_width, bar_height)
-        fg_bar_rect = pygame.Rect(bar_x, bar_y, int(bar_width * hp_ratio), bar_height)
+            x1 = center_x - top_width // 2
+            x2 = center_x + top_width // 2
 
-        pygame.draw.rect(screen, (60, 25, 25), bg_bar_rect, border_radius=6)
-        pygame.draw.rect(screen, (0, 220, 100), fg_bar_rect, border_radius=6)
+            xb1 = center_x - bottom_width // 2
+            xb2 = center_x + bottom_width // 2
 
-        hp_text = self.section_font.render(
-            f"HP: {player.health}/{max_hp}", True, (230, 230, 230)
-        )
-        # More spacing between label and bar
-        hp_rect = hp_text.get_rect(midleft=(bar_x, bar_y - 14))
-        screen.blit(hp_text, hp_rect)
+            points = [
+                (x1, top_y),
+                (x2, top_y),
+                (xb2, top_y + height),
+                (xb1, top_y + height)
+            ]
 
-        # Bullets icons
-        bullet_y = bar_y + 52
-        label = self.section_font.render("Bullets", True, (200, 200, 200))
-        label_rect = label.get_rect(midleft=(bar_x, bullet_y - 12))
-        screen.blit(label, label_rect)
+            pygame.draw.polygon(surface, color, points)
+            pygame.draw.polygon(surface, (120, 180, 255), points, 3)
+        
+        def draw_health_bar(surface, x, y, width, height, health_ratio, base_color):
+            bg_rect = pygame.Rect(x, y, width, height)
 
-        spacing = 18
-        start_x = bar_x
-        for i in range(MAX_BULLETS):
-            cx = start_x + i * spacing + 6
-            cy = bullet_y + 10
-            self._draw_missile(screen, (cx, cy), active=i < bullets_left)
+            # nền pastel nhạt
+            pygame.draw.rect(surface, (230, 230, 240), bg_rect, border_radius=height)
 
-        # Cooldown bar
-        cd_y = bullet_y + 54
-        cd_label = self.section_font.render("Cooldown", True, (200, 200, 200))
-        cd_label_rect = cd_label.get_rect(midleft=(bar_x, cd_y - 12))
-        screen.blit(cd_label, cd_label_rect)
+            fill_width = int(width * health_ratio)
+            fill_rect = pygame.Rect(x, y, fill_width, height)
 
-        cd_bar_width = bar_width
-        cd_bar_height = 10
-        cd_bg = pygame.Rect(bar_x, cd_y, cd_bar_width, cd_bar_height)
-        pygame.draw.rect(screen, (35, 35, 45), cd_bg, border_radius=5)
+            pygame.draw.rect(surface, base_color, fill_rect, border_radius=height)
 
-        # cooldown ratio: 1 when just fired, 0 when ready
-        cd_max = 0.4
-        cd_ratio = max(0.0, min(1.0, cooldown / cd_max))
-        if cd_ratio > 0:
-            cd_fg = pygame.Rect(bar_x, cd_y, int(cd_bar_width * cd_ratio), cd_bar_height)
-            pygame.draw.rect(screen, (120, 180, 255), cd_fg, border_radius=5)
+            # highlight bóng dễ thương
+            highlight = pygame.Rect(x, y, fill_width, height // 2)
+            pygame.draw.rect(surface, (255, 255, 255), highlight, border_radius=height)
 
-    def render(self, screen, p1, p2):
-        # Left panel for Player 1, right panel for Player 2
-        self.render_player_panel(screen, p1, is_left=True)
-        self.render_player_panel(screen, p2, is_left=False)
+        def draw_ammo_icons(surface, start_x, y, current_ammo, max_ammo, align_right=False):
+            import random
+            spacing = 22
+
+            for i in range(max_ammo):
+                if align_right:
+                    cx = start_x - i * spacing
+                else:
+                    cx = start_x + i * spacing
+
+                active = i < current_ammo
+
+                # Nếu hết đạn → rung nhẹ
+                if current_ammo == 0:
+                    cx += random.randint(-2, 2)
+
+                self.draw_bullet_icon(surface, (cx, y), active)
+        
+        def draw_name_badge(surface, text, rect, align_left=True, color=(120,220,180)):
+            badge_height = 28
+            badge_width = 140
+
+            if align_left:
+                badge_rect = pygame.Rect(rect.x + 15, rect.y + 10, badge_width, badge_height)
+            else:
+                badge_rect = pygame.Rect(rect.right - badge_width - 15, rect.y + 10, badge_width, badge_height)
+
+            # nền badge
+            pygame.draw.rect(surface, color, badge_rect, border_radius=14)
+
+            # chữ
+            label = self.section_font.render(text, True, (255,255,255))
+            label_rect = label.get_rect(center=badge_rect.center)
+            surface.blit(label, label_rect)
+        
+        
+        font = pygame.font.Font("assets/fonts/Tricky Jimmy.ttf", 22)
+        big_font = pygame.font.Font("assets/fonts/Tricky Jimmy.ttf", 36)
+
+
+        # PLAYER 1
+        p1_rect = pygame.Rect(20, 15, 320, 80)
+        draw_glass_panel(screen, p1_rect, (150, 200, 255))
+        
+        # name_text = font.render("P1", True, (150, 200, 255))
+        # name_rect = name_text.get_rect(topleft=(p1_rect.x + 20, p1_rect.y - 5))
+        # screen.blit(name_text, name_rect)
+        
+        # draw_name_badge(screen, "🌱 PLAYER 1", p1_rect, align_left=True, color=(120,220,180))
+        draw_health_bar(screen, 
+                        p1_rect.x + 20, 
+                        p1_rect.y + 15, 
+                        250, 
+                        20,
+                        p1.health / p1.max_health,
+                        base_color=(150, 200, 255))
+
+        ammo_y = p1_rect.y + 55
+        draw_ammo_icons(screen,
+                        p1_rect.x + 30,
+                        ammo_y,
+                        MAX_BULLETS - len(p1.bullets),
+                        MAX_BULLETS,
+                        align_right=False)
+
+        # PLAYER 2
+        p2_rect = pygame.Rect(SCREEN_WIDTH - 340, 15, 320, 80)
+        draw_glass_panel(screen, p2_rect, (255, 170, 200))
+        
+        # draw_name_badge(screen, "🌸 PLAYER 2", p2_rect, align_left=False, color=(255,170,200))
+
+        draw_health_bar(screen,
+                        p2_rect.right - 270,
+                        p2_rect.y + 15,
+                        250,
+                        20,
+                        p2.health / p2.max_health,
+                        base_color=(255, 100, 120))
+
+        ammo_y = p2_rect.y + 55
+        draw_ammo_icons(screen,
+                        p2_rect.right - 30,
+                        ammo_y,
+                        MAX_BULLETS - len(p2.bullets),
+                        MAX_BULLETS,
+                        align_right=True)
+    
+    
+        timer_rect = pygame.Rect(0, 0, 140, 60)
+        timer_rect.center = (SCREEN_WIDTH // 2, 40)
+
+        pygame.draw.rect(screen, (255, 255, 255), timer_rect, border_radius=30)
+        pygame.draw.rect(screen, (200, 170, 255), timer_rect, 3, border_radius=30)
+
+        time_color = (200, 170, 255)
+
+        if self.time_left <= 10:
+            time_color = (255, 90, 90)
+
+        time_text = big_font.render(f"{int(self.time_left)}", True, time_color)
+        screen.blit(time_text, time_text.get_rect(center=timer_rect.center))
+    

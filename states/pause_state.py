@@ -69,53 +69,54 @@ class PauseState(BaseState):
     # ======================================================
     # RENDER
     # ======================================================
-    def render(self, screen):
+    # def render(self, screen):
 
-        # Render gameplay behind
-        self.previous_state.render(screen)
+    #     # Render gameplay behind
+    #     self.previous_state.render(screen)
 
-        # Dark overlay
-        overlay = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 160))
-        screen.blit(overlay, (0, 0))
+    #     # Dark overlay
+    #     overlay = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+    #     overlay.fill((0, 0, 0, 160))
+    #     screen.blit(overlay, (0, 0))
 
-        # Title
-        title_text = self.title_font.render("PAUSED", True, (255, 255, 255))
-        title_rect = title_text.get_rect(
-            center=(screen.get_width() // 2, 150)
-        )
-        screen.blit(title_text, title_rect)
+    #     # Title
+    #     title_text = self.title_font.render("PAUSED", True, (255, 255, 255))
+    #     title_rect = title_text.get_rect(
+    #         center=(screen.get_width() // 2, 150)
+    #     )
+    #     screen.blit(title_text, title_rect)
 
-        # Reset option rects
-        self.option_rects = []
+    #     # Reset option rects
+    #     self.option_rects = []
 
-        mouse_pos = pygame.mouse.get_pos()
+    #     mouse_pos = pygame.mouse.get_pos()
 
-        # Draw menu options
-        for i, option in enumerate(self.options):
-            option_text = self.option_font.render(option, True, (255, 255, 255))
-            option_rect = option_text.get_rect(
-                center=(screen.get_width() // 2, 250 + i * 60)
-            )
+    #     # Draw menu options
+    #     for i, option in enumerate(self.options):
+    #         option_text = self.option_font.render(option, True, (255, 255, 255))
+    #         option_rect = option_text.get_rect(
+    #             center=(screen.get_width() // 2, 250 + i * 60)
+    #         )
 
-            # If mouse is over this option → update selection
-            if option_rect.collidepoint(mouse_pos):
-                self.selected_index = i
+    #         # If mouse is over this option → update selection
+    #         if option_rect.collidepoint(mouse_pos):
+    #             self.selected_index = i
 
-            # Highlight based on selected_index
-            if i == self.selected_index:
-                color = (0, 255, 200)  # highlight color
-            else:
-                color = (255, 255, 255)
+    #         # Highlight based on selected_index
+    #         if i == self.selected_index:
+    #             color = (0, 255, 200)  # highlight color
+    #         else:
+    #             color = (255, 255, 255)
 
-            # Render with correct color
-            option_text = self.option_font.render(option, True, color)
-            option_rect = option_text.get_rect(
-                center=(screen.get_width() // 2, 250 + i * 60)
-            )
+    #         # Render with correct color
+    #         option_text = self.option_font.render(option, True, color)
+    #         option_rect = option_text.get_rect(
+    #             center=(screen.get_width() // 2, 250 + i * 60)
+    #         )
 
-            screen.blit(option_text, option_rect)
-            self.option_rects.append(option_rect)
+    #         screen.blit(option_text, option_rect)
+    #         self.option_rects.append(option_rect)
+    
     # ======================================================
     # ACTIONS
     # ======================================================
@@ -140,3 +141,96 @@ class PauseState(BaseState):
 
         elif selected_option == "Main Menu":
             self.state_machine.change_state("start")
+    
+    def render(self, screen):
+        # Render gameplay phía sau
+        self.previous_state.render(screen)
+
+        # =====================================================
+        # Dark + blur feel overlay
+        # =====================================================
+        overlay = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+        overlay.fill((20, 10, 35, 180))  # tím đậm trong suốt
+        screen.blit(overlay, (0, 0))
+
+        width = screen.get_width()
+        height = screen.get_height()
+
+        # =====================================================
+        # Glass Panel
+        # =====================================================
+        panel_rect = pygame.Rect(
+            width // 2 - 350,
+            height // 2 - 250,
+            700,
+            500
+        )
+
+        glass = pygame.Surface(panel_rect.size, pygame.SRCALPHA)
+        glass.fill((255, 255, 255, 35))
+        screen.blit(glass, panel_rect.topleft)
+
+        pygame.draw.rect(screen, (200, 160, 255),
+                        panel_rect, 2, border_radius=30)
+
+        # =====================================================
+        # TITLE
+        # =====================================================
+        title_font = pygame.font.Font("assets/fonts/Star Crush.ttf", 70)
+        title_text = title_font.render("PAUSED", True, (255, 180, 255))
+        screen.blit(title_text,
+                    title_text.get_rect(center=(width // 2,
+                                                panel_rect.top + 90)))
+
+        # =====================================================
+        # OPTIONS
+        # =====================================================
+        self.option_rects = []
+        mouse_pos = pygame.mouse.get_pos()
+
+        start_y = panel_rect.top + 180
+        spacing = 75
+
+        for i, option in enumerate(self.options):
+
+            y = start_y + i * spacing
+
+            option_rect = pygame.Rect(
+                width // 2 - 220,
+                y - 25,
+                440,
+                55
+            )
+
+            is_selected = (i == self.selected_index)
+
+            # Hover bằng chuột
+            if option_rect.collidepoint(mouse_pos):
+                self.selected_index = i
+                is_selected = True
+
+            # -------------------------------------------------
+            # Button background
+            # -------------------------------------------------
+            if is_selected:
+                pygame.draw.rect(screen,
+                                (210, 170, 255),
+                                option_rect,
+                                border_radius=30)
+            else:
+                pygame.draw.rect(screen,
+                                (90, 70, 120),
+                                option_rect,
+                                border_radius=30)
+
+            # -------------------------------------------------
+            # Text
+            # -------------------------------------------------
+            text_color = (40, 20, 60) if is_selected else (230, 220, 255)
+
+            option_font = pygame.font.SysFont(None, 42)
+            text_surface = option_font.render(option, True, text_color)
+            screen.blit(text_surface,
+                        text_surface.get_rect(center=option_rect.center))
+
+            self.option_rects.append(option_rect)

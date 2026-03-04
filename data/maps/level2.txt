@@ -1,5 +1,11 @@
-WWWWWWWWWWWWWWWWWWWWWWWWWWWWW
-W............W..............W
-W..P1..W.....W......W...P2..W
-W......W............W.......W
-WWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+WWWWWWWWWWWWWWWWWWWW
+W..................W
+W..P1..W...W...P2..W
+W......W......W....W
+W......W.....W.....W
+W......W...W.......W
+W..D...W......W....W
+W......W......W....W
+W......W...D..W....W
+W......W......W....W
+WWWWWWWWWWWWWWWWWWWW

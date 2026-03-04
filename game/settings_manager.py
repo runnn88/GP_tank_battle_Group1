@@ -25,6 +25,11 @@ class Settings:
         self.destructible_walls = False
         self.powerups_enabled = False
         self.bullet_can_hit_self = False
+
+        # =========================
+        # Audio
+        # =========================
+        self.master_volume = 0.5  # 0.0 → 1.0
         
         # Map
         self.random_map = False
@@ -49,6 +54,9 @@ class Settings:
     @property
     def resolution(self):
         return self.windowed_resolutions[self.current_resolution_index]
+    
+    def apply_audio_settings(self):
+        pygame.mixer.music.set_volume(self.master_volume)
 
 
 settings = Settings()
