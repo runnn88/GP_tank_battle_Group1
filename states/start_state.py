@@ -78,10 +78,6 @@ class StartState(BaseState):
             # Handle mouse clicks on buttons
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if self.button_rect.collidepoint(event.pos):
-                    self.click_sound.play()
-                    self.is_fading = True
-
-                if self.button_rect.collidepoint(event.pos):
                     self.button_states["start"] = "pressed"
                     self.click_sound.play()
                     self.is_fading = True
@@ -137,8 +133,16 @@ class StartState(BaseState):
 
             if self.fade_alpha >= 255:
                 self.fade_alpha = 255
+
                 if self.next_state:
-                    self.state_machine.change_state(self.next_state)
+                    next_state = self.next_state
+
+                    # RESET TRANSITION
+                    self.is_fading = False
+                    self.next_state = None
+                    self.fade_alpha = 0
+
+                    self.state_machine.change_state(next_state, previous_state=self)
                 # self.state_machine.change_state("gameplay")
 
     def render_outlined_text(self, text, font, text_color, outline_color, outline_width):
