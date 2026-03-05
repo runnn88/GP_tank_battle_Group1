@@ -13,6 +13,7 @@ from config import (
 )
 from game.bullet import Bullet
 from game.settings_manager import settings
+from game.heart_effect import HeartParticle
 
 
 class Tank:
@@ -42,11 +43,13 @@ class Tank:
         # ---------------------------
         self.color = color
         self.radius = TANK_RADIUS
+        self.effects = []  # List of active visual effects (e.g. heart particles)
 
         # ---------------------------
         # Gameplay State
         # ---------------------------
         self.health = TANK_HEALTH
+        self.max_health = TANK_HEALTH
         self.alive = True
 
         # ---------------------------
@@ -54,6 +57,8 @@ class Tank:
         # ---------------------------
         self.bullets = []
         self.shoot_cooldown = 0.0
+        self.flash_duration = 0.1  # Thời gian flash khi bắn
+        self.flash_timer = 0.0
 
         # ---------------------------
         # Explosion and Flash Effects
@@ -114,7 +119,7 @@ class Tank:
         orig_w, orig_h = self.turret_image.get_size()
         # Scale so the longest side matches ~70% of body size
         max_side = max(orig_w, orig_h)
-        scale = (base_size * 0.7) / max_side
+        scale = (base_size * 0.9) / max_side
         new_size = (int(orig_w * scale), int(orig_h * scale))
         self.turret_image = pygame.transform.scale(self.turret_image, new_size)
 
@@ -259,6 +264,11 @@ class Tank:
                         
 
         self.bullets = [b for b in self.bullets if b.alive]
+
+        for effect in self.effects:
+            effect.update(dt)
+
+        self.effects = [e for e in self.effects if not e.is_dead()]
 
         if self.flash_timer > 0:
             # self.flash_timer = max(0.0, self.flash_timer - dt)
@@ -438,10 +448,15 @@ class Tank:
  
         self.health -= 20
         self.hit_sound.play()
-        if self.health <= 0:
-            self.explosions.append((self.position.copy(), 0))  # Thêm hiệu ứng nổ
+        if self.health <= 0 and not self.is_dying:
+            self.is_dying = True
+            # self.alive = False  # Vẫn alive trong quá trình hiệu ứng nổ, sẽ set False sau khi hiệu ứng kết thúc
+            self.death_timer = 0.0
             self.explosion_sound.play()
-            self.alive = False
+        # if self.health <= 0:
+        #     self.explosions.append((self.position.copy(), 0))  # Thêm hiệu ứng nổ
+        #     self.explosion_sound.play()
+        #     self.alive = False
             # self.explosions.append((self.position.copy(), 0))  # Thêm hiệu ứng nổ
             # self.explosion_sound.play()
 
@@ -655,6 +670,10 @@ class Tank:
         # Draw bullets
         for bullet in self.bullets:
             bullet.render(screen, offset)
+
+        # Draw effects
+        for effect in self.effects:
+            effect.draw(screen)
 
         # Hiển thị hiệu ứng nổ
         for pos, timer in self.explosions:
