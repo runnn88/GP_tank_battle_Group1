@@ -1,4 +1,6 @@
 import pygame
+import math
+
 from config import SCREEN_WIDTH, SCREEN_HEIGHT, UI_SIDE_WIDTH, MAX_BULLETS, TOP_UI_HEIGHT
 
 
@@ -15,6 +17,12 @@ class HUD:
             self.font = pygame.font.SysFont("bahnschrift", 22)
             self.title_font = pygame.font.SysFont("bahnschrift", 30, bold=True)
             self.section_font = pygame.font.SysFont("segoeui", 20)
+        
+        self.powerup_icons = {
+            "speed": pygame.transform.scale(pygame.image.load("assets/image/speed1.png").convert_alpha(), (24, 24)),
+            "shield": pygame.transform.scale(pygame.image.load("assets/image/shield1.png").convert_alpha(), (24, 24)),
+            "triple": pygame.transform.scale(pygame.image.load("assets/image/trip1.png").convert_alpha(), (24, 24))
+        }
 
         self.time_left = 120.0  # Example timer for the top banner
 
@@ -59,6 +67,45 @@ class HUD:
 
         pygame.draw.circle(surface, color, (x, y), 8)
         pygame.draw.circle(surface, (255, 255, 255), (x - 3, y - 3), 3)
+    
+    def draw_powerup_icon(self, screen, pos, type_, remaining, total_duration):
+        icon = self.powerup_icons[type_]
+
+        # --- Draw icon ---
+        icon_rect = icon.get_rect(center=pos)
+        screen.blit(icon, icon_rect)
+
+        # --- Draw timer circle ---
+        progress = remaining / total_duration
+        progress = max(0, min(1, progress))
+
+        radius = 20
+        thickness = 4
+
+        # Background circle (faint)
+        pygame.draw.circle(screen, (255, 255, 255), pos, radius, 1)
+
+        # Arc countdown
+        end_angle = -math.pi / 2 + 2 * math.pi * progress
+
+        pygame.draw.arc(
+            screen,
+            (255, 200, 200) if progress < 0.3 else (180, 220, 255),
+            (
+                pos[0] - radius,
+                pos[1] - radius,
+                radius * 2,
+                radius * 2
+            ),
+            -math.pi / 2,
+            end_angle,
+            thickness
+        )
+
+        # Blink when nearly finished
+        if progress < 0.2:
+            if int(pygame.time.get_ticks() / 150) % 2 == 0:
+                pygame.draw.circle(screen, (255, 255, 255), pos, radius + 3, 2)
 
     def update(self, dt):
         if self.time_left > 0:
@@ -188,6 +235,17 @@ class HUD:
                         MAX_BULLETS - len(p1.bullets),
                         MAX_BULLETS,
                         align_right=False)
+        
+        x_start = p1_rect.x + 180
+        y_pos = p1_rect.y + 55
+        spacing = 50
+
+        i = 0
+        for key, remaining in p1.active_powerups.items():
+            total = 5.0  # duration mặc định của bạn
+            pos = (x_start + i * spacing, y_pos)
+            self.draw_powerup_icon(screen, pos, key, remaining, total)
+            i += 1
 
         # PLAYER 2
         p2_rect = pygame.Rect(SCREEN_WIDTH - 340, 15, 320, 80)
@@ -210,6 +268,17 @@ class HUD:
                         MAX_BULLETS - len(p2.bullets),
                         MAX_BULLETS,
                         align_right=True)
+        
+        x_start = p2_rect.right - 180
+        y_pos = p2_rect.y + 55
+        spacing = 50
+
+        i = 0
+        for key, remaining in p2.active_powerups.items():
+            total = 5.0
+            pos = (x_start - i * spacing, y_pos)
+            self.draw_powerup_icon(screen, pos, key, remaining, total)
+            i += 1
     
     
         timer_rect = pygame.Rect(0, 0, 140, 60)
