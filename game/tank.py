@@ -86,6 +86,7 @@ class Tank:
         # ---------------------------
         self.active_powerups = {}
         self.base_speed = TANK_SPEED
+        self.speed = TANK_SPEED
         self.shield_active = False
 
         # ---------------------------
@@ -204,13 +205,6 @@ class Tank:
         if self.shoot_cooldown > 0:
             self.shoot_cooldown = max(0.0, self.shoot_cooldown - dt)
 
-        if keys[self.controls["left"]]:
-            self.angle -= ROTATION_SPEED * dt
-        if keys[self.controls["right"]]:
-            self.angle += ROTATION_SPEED * dt
-        if not settings.independent_turret:
-            self.turret_angle = self.angle  # Turret follows body if not independent
-
         # In our sprites, angle 0 points "up", so shift by -90 degrees
         move_rad = math.radians(self.angle - 90)
         direction = pygame.Vector2(
@@ -221,9 +215,9 @@ class Tank:
         # Compute intended velocity along current facing direction
         velocity = pygame.Vector2(0, 0)
         if keys[self.controls["forward"]]:
-            velocity += direction * TANK_SPEED
+            velocity += direction * self.speed
         if keys[self.controls["backward"]]:
-            velocity -= direction * TANK_SPEED
+            velocity -= direction * self.speed
 
         # --- AABB collision: move X then Y and resolve with rects ---
         # Move along X
