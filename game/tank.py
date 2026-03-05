@@ -531,7 +531,7 @@ class Tank:
         body_rect = rotated_body.get_rect(center=center)
         screen.blit(rotated_body, body_rect.topleft)
 
-        # --- TURRET (independent) ---
+        # --- TURRET ---
         rotated_turret = pygame.transform.rotate(self.turret_image, -self.turret_angle)
         turret_rect = rotated_turret.get_rect(center=center)
         screen.blit(rotated_turret, turret_rect.topleft)
@@ -667,7 +667,7 @@ class Tank:
 
         # Draw effects
         for effect in self.effects:
-            effect.draw(screen)
+            effect.draw(screen, offset)
 
         # Hiển thị hiệu ứng nổ
         for pos, timer in self.explosions:

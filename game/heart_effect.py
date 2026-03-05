@@ -16,7 +16,7 @@ class HeartParticle:
         self.pos += self.velocity * dt
         self.velocity.y += 120 * dt  # gravity nhẹ
 
-    def draw(self, screen):
+    def draw(self, screen, offset):
         alpha = max(0, 255 * (1 - self.timer / self.life))
         heart = pygame.Surface((20, 20), pygame.SRCALPHA)
 
@@ -28,7 +28,7 @@ class HeartParticle:
             [(2, 10), (18, 10), (10, 18)]
         )
 
-        screen.blit(heart, self.pos)
+        screen.blit(heart, self.pos + offset)
 
     def is_dead(self):
         return self.timer >= self.life
