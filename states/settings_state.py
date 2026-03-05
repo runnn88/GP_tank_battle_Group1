@@ -6,6 +6,7 @@ from utils.display_manager import apply_display_settings
 
 class SettingsState(BaseState):
     def __init__(self, state_machine, previous_state=None):
+        print("Previous state:", previous_state)
         super().__init__(state_machine)
         self.tab_rects = []
         self.option_rects = []
@@ -33,6 +34,9 @@ class SettingsState(BaseState):
             "P2 Turret Left",
             "P2 Turret Right"
         ]
+        self.is_fading = False
+        self.next_state = None
+        self.fade_alpha = 0
 
     # =========================================================
     # EVENTS

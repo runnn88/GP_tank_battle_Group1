@@ -6,6 +6,7 @@ from states.pause_state import PauseState
 
 from game.level import Level
 from game.tank import Tank
+from game.powerup import PowerUp
 from ui.hud import HUD
 from config import (
     PLAYER1_CONTROLS,
@@ -17,7 +18,7 @@ from config import (
 )
 
 class GameplayState(BaseState):
-    def __init__(self, state_machine):
+    def __init__(self, state_machine, previous_state=None):
         super().__init__(state_machine)
 
         # Background
@@ -30,7 +31,7 @@ class GameplayState(BaseState):
         self.player1 = Tank(
             position=self.level.spawn_p1,
             controls=PLAYER1_CONTROLS, 
-            color=(0, 200, 0),
+            color=(150, 200, 255),
             turret_left_key_name="p1_turret_left",
             turret_right_key_name="p1_turret_right"
         )
@@ -38,7 +39,7 @@ class GameplayState(BaseState):
         self.player2 = Tank(
             position=self.level.spawn_p2,
             controls=PLAYER2_CONTROLS, 
-            color=(200, 0, 0),
+            color=(255, 100, 120),
             turret_left_key_name="p2_turret_left",
             turret_right_key_name="p2_turret_right"
         )
@@ -60,6 +61,12 @@ class GameplayState(BaseState):
 
         self.level_offset = pygame.Vector2(offset_x, offset_y)
 
+        # Power-up management
+        self.powerups = []
+        self.powerup_spawn_timer = 0
+        self.powerup_spawn_interval = 3  # spawn mỗi 8s
+
+
         # Explosion timer
         self.explosion_timer = 0.0
         self.explosion_duration = 2.5  # Duration of explosion effect
@@ -75,6 +82,7 @@ class GameplayState(BaseState):
 
         self.sparkles = []
         self.sparkle_spawn_timer = 0
+
 
     def handle_events(self):
         for event in pygame.event.get():
@@ -148,6 +156,35 @@ class GameplayState(BaseState):
         self.player1.update(dt, self.level.walls, self.player2)
         self.player2.update(dt, self.level.walls, self.player1)
 
+        # Spawn powerup
+        self.powerup_spawn_timer += dt
+        if self.powerup_spawn_timer >= self.powerup_spawn_interval:
+            self.powerup_spawn_timer = 0
+
+            x = random.randint(100, SCREEN_WIDTH - 100)
+            y = random.randint(150, SCREEN_HEIGHT - 100)
+
+            self.powerups.append(PowerUp((x, y)))
+
+        # Update powerups
+        for powerup in self.powerups:
+            powerup.update(dt)
+
+            # Check pickup P1
+            if powerup.rect.collidepoint(self.player1.position):
+                self.player1.apply_powerup(powerup.type, powerup.duration)
+                self.powerups.remove(powerup)
+                break
+
+            # Check pickup P2
+            if powerup.rect.collidepoint(self.player2.position):
+                self.player2.apply_powerup(powerup.type, powerup.duration)
+                self.powerups.remove(powerup)
+                break
+
+        # Remove expired
+        self.powerups = [p for p in self.powerups if not p.is_expired()]
+
         if (self.player1.is_dying or self.player2.is_dying) and not self.waiting_for_explosion:
             self.waiting_for_explosion = True
             self.explosion_timer = 0.0
@@ -159,6 +196,9 @@ class GameplayState(BaseState):
 
         # Draw level and tanks centered in the middle play area
         self.level.render(screen, self.level_offset)
+
+        for powerup in self.powerups:
+            powerup.render(screen, self.level_offset)
         
         self.player1.render(screen, self.level_offset)
         self.player2.render(screen, self.level_offset)
