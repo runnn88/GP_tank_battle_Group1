@@ -28,7 +28,6 @@ class StartState(BaseState):
         self.background = self.background.subsurface((0, 0, self.state_machine.screen.get_width(), bg_h))
         self.click_sound = pygame.mixer.Sound("assets/sounds/click.mp3")
         settings.register_sound(self.click_sound)
-        settings.refresh_levels()
         
         # Loop bgm
         # self.bgm = pygame.mixer.Sound("assets/sounds/bgm.mp3")
@@ -43,13 +42,11 @@ class StartState(BaseState):
         screen_rect = self.state_machine.screen.get_rect()
         self.button_scales = {
             "start": 1.0,
-            "level": 1.0,
             "settings": 1.0,
             "quit": 1.0
         }
         self.button_states = {
             "start": "normal",
-            "level": "normal",
             "settings": "normal",
             "quit": "normal"
         }
@@ -60,15 +57,12 @@ class StartState(BaseState):
 
         # "Settings" button (placed below Start)
         self.setting_button_rect = pygame.Rect(0, 0, 320, 75)
-        self.setting_button_rect.center = (screen_rect.centerx, screen_rect.centery + 240)
-
-        # "Level" button (between Start and Settings)
-        self.level_button_rect = pygame.Rect(0, 0, 420, 75)
-        self.level_button_rect.center = (screen_rect.centerx, screen_rect.centery + 150)
+        self.setting_button_rect.center = (screen_rect.centerx, screen_rect.centery + 150)
 
         # "Quit" button
         self.quit_button_rect = pygame.Rect(0, 0, 320, 75)
-        self.quit_button_rect.center = (screen_rect.centerx, screen_rect.centery + 330)
+        self.quit_button_rect.center = (screen_rect.centerx, screen_rect.centery + 240)
+        self._layout_buttons(screen_rect)
 
         # Fade transition
         self.is_fading = False
@@ -96,10 +90,7 @@ class StartState(BaseState):
         )
 
         screen_rect = screen.get_rect()
-        self.button_rect.center = (screen_rect.centerx, screen_rect.centery + 60)
-        self.level_button_rect.center = (screen_rect.centerx, screen_rect.centery + 150)
-        self.setting_button_rect.center = (screen_rect.centerx, screen_rect.centery + 240)
-        self.quit_button_rect.center = (screen_rect.centerx, screen_rect.centery + 330)
+        self._layout_buttons(screen_rect)
 
         self.fade_surface = pygame.Surface(screen.get_size())
         self.fade_surface.fill((0, 0, 0))
@@ -122,11 +113,6 @@ class StartState(BaseState):
                     self.click_sound.play()
                     self.is_fading = True
                     self.next_state = "settings"
-
-                elif self.level_button_rect.collidepoint(event.pos):
-                    self.button_states["level"] = "hover"
-                    settings.cycle_level(1)
-                    self.click_sound.play()
 
                 elif self.quit_button_rect.collidepoint(event.pos):
                     self.button_states["quit"] = "pressed"
@@ -163,7 +149,6 @@ class StartState(BaseState):
                 self.button_scales[key] = max(self.button_scales[key] - dt * 6, 1.0)
 
         update_hover(self.button_rect, "start")
-        update_hover(self.level_button_rect, "level")
         update_hover(self.setting_button_rect, "settings")
         update_hover(self.quit_button_rect, "quit")
         
@@ -313,15 +298,19 @@ class StartState(BaseState):
 
             # ===== Text =====
             font_size = 54 if scale > 1.01 else 48
-            font = pygame.font.Font("assets/fonts/NanoPixDEMO-Regular.ttf", font_size)
-
-            text_surface = self.render_outlined_text(
-                text,
-                font,
-                text_color,
-                (0, 0, 0),
-                3
-            )
+            min_size = 24
+            while True:
+                font = pygame.font.Font("assets/fonts/NanoPixDEMO-Regular.ttf", font_size)
+                text_surface = self.render_outlined_text(
+                    text,
+                    font,
+                    text_color,
+                    (0, 0, 0),
+                    3
+                )
+                if text_surface.get_width() <= scaled_rect.width - 20 or font_size <= min_size:
+                    break
+                font_size -= 2
 
             text_rect = text_surface.get_rect(center=scaled_rect.center)
             screen.blit(text_surface, text_rect)
@@ -331,13 +320,6 @@ class StartState(BaseState):
             "Start",
             self.button_scales["start"],
             self.button_states["start"]
-        )
-
-        draw_modern_button(
-            self.level_button_rect,
-            f"Level: {settings.selected_level_label}",
-            self.button_scales["level"],
-            self.button_states["level"]
         )
 
         draw_modern_button(
@@ -358,3 +340,19 @@ class StartState(BaseState):
         if self.is_fading:
             self.fade_surface.set_alpha(int(self.fade_alpha))
             screen.blit(self.fade_surface, (0, 0))
+
+    def _layout_buttons(self, screen_rect):
+        spacing = 90
+        start_y = screen_rect.centery + 70
+
+        centers = [start_y, start_y + spacing, start_y + spacing * 2]
+
+        button_half_h = self.button_rect.height // 2
+        bottom_limit = screen_rect.height - 20
+        overflow = (centers[-1] + button_half_h) - bottom_limit
+        if overflow > 0:
+            centers = [y - overflow for y in centers]
+
+        self.button_rect.center = (screen_rect.centerx, centers[0])
+        self.setting_button_rect.center = (screen_rect.centerx, centers[1])
+        self.quit_button_rect.center = (screen_rect.centerx, centers[2])
