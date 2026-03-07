@@ -7,6 +7,7 @@ from states.pause_state import PauseState
 from game.level import Level
 from game.tank import Tank
 from game.powerup import PowerUp
+from game.settings_manager import settings
 from ui.hud import HUD
 from config import (
     PLAYER1_CONTROLS,
@@ -16,13 +17,14 @@ from config import (
 
 
 class GameplayState(BaseState):
-    def __init__(self, state_machine, previous_state=None):
+    def __init__(self, state_machine, previous_state=None, level_path=None):
         super().__init__(state_machine)
 
         self.background_source = pygame.image.load("assets/BG/content.png").convert()
         self.background = self.background_source
 
-        self.level = Level("data/maps/level2.txt")
+        chosen_path = level_path or settings.selected_level_path
+        self.level = Level(chosen_path)
         self.hud = HUD()
 
         self.player1 = Tank(

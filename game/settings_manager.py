@@ -38,6 +38,7 @@ class Settings:
         self.allow_destructible = True
         self.allow_indestructible = True
         self.wall_density = 0.25
+        self.selected_level_path = "data/maps/level2.txt"
 
         # Gameplay
         self.max_bounces = 3

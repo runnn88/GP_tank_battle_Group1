@@ -7,6 +7,7 @@ from states.gameplay_state import GameplayState
 from states.game_over_state import GameOverState
 from states.settings_state import SettingsState
 from states.pause_state import PauseState
+from states.level_select_state import LevelSelectState
 
 from game.settings_manager import settings
 
@@ -31,6 +32,7 @@ def main():
     state_machine.register_state("gameover", GameOverState)
     state_machine.register_state("settings", SettingsState)
     state_machine.register_state("pause", PauseState)
+    state_machine.register_state("level_select", LevelSelectState)
 
     state_machine.change_state("start")
     
