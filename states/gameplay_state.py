@@ -18,7 +18,7 @@ from config import (
 )
 
 class GameplayState(BaseState):
-    def __init__(self, state_machine):
+    def __init__(self, state_machine, previous_state=None):
         super().__init__(state_machine)
 
         # Background
