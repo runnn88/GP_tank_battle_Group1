@@ -446,7 +446,8 @@ class Tank:
             return
         self.effects.append(HeartParticle(self.position.copy()))  # Thêm hiệu ứng trái tim khi bị bắn trúng
  
-        self.health -= 20
+        if self.health > 0:
+            self.health -= 20
         self.hit_sound.play()
         if self.health <= 0 and not self.is_dying:
             self.is_dying = True

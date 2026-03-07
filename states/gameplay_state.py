@@ -64,7 +64,7 @@ class GameplayState(BaseState):
         # Power-up management
         self.powerups = []
         self.powerup_spawn_timer = 0
-        self.powerup_spawn_interval = 3  # spawn mỗi 8s
+        self.powerup_spawn_interval = 8  # spawn mỗi 8s
 
 
         # Explosion timer
