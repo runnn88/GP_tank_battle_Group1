@@ -71,17 +71,19 @@ class SettingsState(BaseState):
                     self.activate_option()
 
                 if event.key == pygame.K_ESCAPE:
-                    self.state_machine.current_state = self.previous_state
+                    if self.previous_state:
+                        if hasattr(self.previous_state, "on_resume"):
+                            self.previous_state.on_resume()
+                        self.state_machine.current_state = self.previous_state
+                    else:
+                        self.state_machine.change_state("start")
 
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                # self.handle_mouse_click(pygame.mouse.get_pos())
                 mouse_pos = pygame.mouse.get_pos()
-
-                # Check volume slider drag
+                self.handle_mouse_click(mouse_pos)
                 if self.tab == 0 and self.selected == 4:
                     self.dragging_volume = True
-
-                self.handle_mouse_click(mouse_pos)
+                    self.update_volume_with_mouse(mouse_pos)
 
             if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
                 self.dragging_volume = False

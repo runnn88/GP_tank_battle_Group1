@@ -80,6 +80,9 @@ class Tank:
         self.shoot_sound = pygame.mixer.Sound("assets/sounds/shoot.mp3")
         self.hit_sound = pygame.mixer.Sound("assets/sounds/shoot.mp3")
         self.explosion_sound = pygame.mixer.Sound("assets/sounds/explosion.mp3")
+        settings.register_sound(self.shoot_sound)
+        settings.register_sound(self.hit_sound)
+        settings.register_sound(self.explosion_sound)
 
         # ---------------------------
         # Power-ups
@@ -123,6 +126,7 @@ class Tank:
         scale = (base_size * 0.9) / max_side
         new_size = (int(orig_w * scale), int(orig_h * scale))
         self.turret_image = pygame.transform.scale(self.turret_image, new_size)
+        self.turret_length = max(self.radius + 8, int(new_size[1] * 0.45))
 
     def apply_powerup(self, type_, duration):
         self.active_powerups[type_] = duration
@@ -364,7 +368,7 @@ class Tank:
         # )
 
         # --- Bullet spawns at the end of the turret barrel, not the center of the tank ---
-        barrel_length = self.radius + 15
+        barrel_length = self.turret_length
         spawn = self.position + direction * barrel_length
         
         if "triple" in self.active_powerups:
@@ -651,7 +655,7 @@ class Tank:
 
             # Xoay
             rotated = pygame.transform.rotate(sparkle_surface, spark["rot"])
-            rect = rotated.get_rect(center=spark["pos"])
+            rect = rotated.get_rect(center=spark["pos"] + offset)
 
             screen.blit(rotated, rect)
 

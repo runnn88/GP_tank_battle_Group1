@@ -1,6 +1,7 @@
 import pygame
 from states.base_state import BaseState
 from utils.helpers import draw_text_with_outline
+from game.settings_manager import settings
 
 class StartState(BaseState):
     def __init__(self, state_machine):
@@ -20,11 +21,14 @@ class StartState(BaseState):
         self.hover_scale = 1.1  # Scale factor for hover effect
 
         # Background and Sounds
-        self.background = pygame.image.load("assets/BG/bgmainmenu.png").convert()
-        self.background = pygame.transform.scale(self.background, self.state_machine.screen.get_size())
+        self.background_source = pygame.image.load("assets/BG/bgmainmenu.png").convert()
+        self.background = pygame.transform.scale(self.background_source, self.state_machine.screen.get_size())
         self.bg_offset_y = 40  # Độ lệch dọc của background
-        self.background = self.background.subsurface((0, 0, self.state_machine.screen.get_width(), self.state_machine.screen.get_height() - self.bg_offset_y - 60))
+        bg_h = max(1, self.state_machine.screen.get_height() - self.bg_offset_y - 60)
+        self.background = self.background.subsurface((0, 0, self.state_machine.screen.get_width(), bg_h))
         self.click_sound = pygame.mixer.Sound("assets/sounds/click.mp3")
+        settings.register_sound(self.click_sound)
+        settings.refresh_levels()
         
         # Loop bgm
         # self.bgm = pygame.mixer.Sound("assets/sounds/bgm.mp3")
@@ -39,11 +43,13 @@ class StartState(BaseState):
         screen_rect = self.state_machine.screen.get_rect()
         self.button_scales = {
             "start": 1.0,
+            "level": 1.0,
             "settings": 1.0,
             "quit": 1.0
         }
         self.button_states = {
             "start": "normal",
+            "level": "normal",
             "settings": "normal",
             "quit": "normal"
         }
@@ -54,11 +60,15 @@ class StartState(BaseState):
 
         # "Settings" button (placed below Start)
         self.setting_button_rect = pygame.Rect(0, 0, 320, 75)
-        self.setting_button_rect.center = (screen_rect.centerx, screen_rect.centery + 150)
+        self.setting_button_rect.center = (screen_rect.centerx, screen_rect.centery + 240)
+
+        # "Level" button (between Start and Settings)
+        self.level_button_rect = pygame.Rect(0, 0, 420, 75)
+        self.level_button_rect.center = (screen_rect.centerx, screen_rect.centery + 150)
 
         # "Quit" button
         self.quit_button_rect = pygame.Rect(0, 0, 320, 75)
-        self.quit_button_rect.center = (screen_rect.centerx, screen_rect.centery + 240)
+        self.quit_button_rect.center = (screen_rect.centerx, screen_rect.centery + 330)
 
         # Fade transition
         self.is_fading = False
@@ -68,6 +78,30 @@ class StartState(BaseState):
         self.fade_surface = pygame.Surface(
             self.state_machine.screen.get_size()
         )
+        self.fade_surface.fill((0, 0, 0))
+
+    def on_resume(self):
+        self.button_scales = {key: 1.0 for key in self.button_scales}
+        self.button_states = {key: "normal" for key in self.button_states}
+        self.is_fading = False
+        self.next_state = None
+        self.fade_alpha = 0
+        self.music_volume = pygame.mixer.music.get_volume()
+
+    def on_resize(self, screen):
+        scaled = pygame.transform.scale(self.background_source, screen.get_size())
+        bg_h = max(1, screen.get_height() - self.bg_offset_y - 60)
+        self.background = scaled.subsurface(
+            (0, 0, screen.get_width(), bg_h)
+        )
+
+        screen_rect = screen.get_rect()
+        self.button_rect.center = (screen_rect.centerx, screen_rect.centery + 60)
+        self.level_button_rect.center = (screen_rect.centerx, screen_rect.centery + 150)
+        self.setting_button_rect.center = (screen_rect.centerx, screen_rect.centery + 240)
+        self.quit_button_rect.center = (screen_rect.centerx, screen_rect.centery + 330)
+
+        self.fade_surface = pygame.Surface(screen.get_size())
         self.fade_surface.fill((0, 0, 0))
 
     def handle_events(self):
@@ -89,6 +123,11 @@ class StartState(BaseState):
                     self.is_fading = True
                     self.next_state = "settings"
 
+                elif self.level_button_rect.collidepoint(event.pos):
+                    self.button_states["level"] = "hover"
+                    settings.cycle_level(1)
+                    self.click_sound.play()
+
                 elif self.quit_button_rect.collidepoint(event.pos):
                     self.button_states["quit"] = "pressed"
                     self.click_sound.play()
@@ -103,9 +142,12 @@ class StartState(BaseState):
         elif self.title_scale < 0.95:
             self.pulse_direction = 1
         
-        if self.music_volume < 0.5:
-            self.music_volume += dt * 0.2
-            pygame.mixer.music.set_volume(self.music_volume)
+        target_volume = settings.master_volume
+        if self.music_volume < target_volume:
+            self.music_volume = min(target_volume, self.music_volume + dt * 0.2)
+        elif self.music_volume > target_volume:
+            self.music_volume = max(target_volume, self.music_volume - dt * 0.4)
+        pygame.mixer.music.set_volume(self.music_volume)
 
         # Lấy vị trí chuột
         mouse_pos = pygame.mouse.get_pos()
@@ -121,6 +163,7 @@ class StartState(BaseState):
                 self.button_scales[key] = max(self.button_scales[key] - dt * 6, 1.0)
 
         update_hover(self.button_rect, "start")
+        update_hover(self.level_button_rect, "level")
         update_hover(self.setting_button_rect, "settings")
         update_hover(self.quit_button_rect, "quit")
         
@@ -288,6 +331,13 @@ class StartState(BaseState):
             "Start",
             self.button_scales["start"],
             self.button_states["start"]
+        )
+
+        draw_modern_button(
+            self.level_button_rect,
+            f"Level: {settings.selected_level_label}",
+            self.button_scales["level"],
+            self.button_states["level"]
         )
 
         draw_modern_button(

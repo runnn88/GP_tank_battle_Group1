@@ -1,7 +1,7 @@
 import pygame
 import math
 
-from config import SCREEN_WIDTH, SCREEN_HEIGHT, UI_SIDE_WIDTH, MAX_BULLETS, TOP_UI_HEIGHT
+from config import MAX_BULLETS
 
 
 class HUD:
@@ -114,6 +114,8 @@ class HUD:
                 self.time_left = 0
     
     def render(self, screen, p1, p2):      
+        screen_width = screen.get_width()
+
         def draw_glass_panel(surface, rect, border_color):
             glass = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
             # glass.fill((255, 255, 255, 180))  # trắng trong
@@ -248,7 +250,7 @@ class HUD:
             i += 1
 
         # PLAYER 2
-        p2_rect = pygame.Rect(SCREEN_WIDTH - 340, 15, 320, 80)
+        p2_rect = pygame.Rect(screen_width - 340, 15, 320, 80)
         draw_glass_panel(screen, p2_rect, (255, 170, 200))
         
         # draw_name_badge(screen, "🌸 PLAYER 2", p2_rect, align_left=False, color=(255,170,200))
@@ -282,7 +284,7 @@ class HUD:
     
     
         timer_rect = pygame.Rect(0, 0, 140, 60)
-        timer_rect.center = (SCREEN_WIDTH // 2, 40)
+        timer_rect.center = (screen_width // 2, 40)
 
         pygame.draw.rect(screen, (255, 255, 255), timer_rect, border_radius=30)
         pygame.draw.rect(screen, (200, 170, 255), timer_rect, 3, border_radius=30)
