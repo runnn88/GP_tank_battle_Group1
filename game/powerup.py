@@ -4,6 +4,7 @@ import math
 
 class PowerUp:
     SIZE = 40
+    BUBBLE_RADIUS = 30
     TYPES = ["speed", "shield", "triple"]
     COLORS = {
         "speed": (180, 220, 255),     # pastel blue
@@ -61,7 +62,7 @@ class PowerUp:
 
         bubble_surface = pygame.Surface((90, 90), pygame.SRCALPHA)
 
-        radius = 30
+        radius = self.BUBBLE_RADIUS
         bubble_center = (45, 45)
 
         # --- Glow mềm bên ngoài ---
@@ -117,6 +118,10 @@ class PowerUp:
         image = self.IMAGES[self.type]
         icon_rect = image.get_rect(center=(center_x, center_y))
         screen.blit(image, icon_rect)
+
+    def collides_with_circle(self, center, radius):
+        total_radius = self.BUBBLE_RADIUS + radius
+        return self.position.distance_squared_to(center) <= (total_radius * total_radius)
 
     # def render(self, screen, offset):
     #     center_x = int(self.position.x + offset.x)

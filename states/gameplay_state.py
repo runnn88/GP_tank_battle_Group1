@@ -167,12 +167,12 @@ class GameplayState(BaseState):
         for powerup in self.powerups:
             powerup.update(dt)
 
-            if powerup.rect.collidepoint(self.player1.position):
+            if powerup.collides_with_circle(self.player1.position, self.player1.radius):
                 self.player1.apply_powerup(powerup.type, powerup.duration)
                 self.powerups.remove(powerup)
                 break
 
-            if powerup.rect.collidepoint(self.player2.position):
+            if powerup.collides_with_circle(self.player2.position, self.player2.radius):
                 self.player2.apply_powerup(powerup.type, powerup.duration)
                 self.powerups.remove(powerup)
                 break

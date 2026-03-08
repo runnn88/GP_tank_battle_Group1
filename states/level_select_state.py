@@ -19,7 +19,12 @@ class LevelSelectState(BaseState):
         self.level_entries = self._load_levels()
         self.selected_index = 0
         self.hover_index = None
-        self.card_rects = []
+
+        self.columns = 1
+        self.content_rects = []
+        self.viewport_rect = pygame.Rect(0, 0, 1, 1)
+        self.scroll_y = 0
+        self.max_scroll = 0
 
         self.on_resize(self.state_machine.screen)
 
@@ -110,35 +115,70 @@ class LevelSelectState(BaseState):
         w = screen.get_width()
         h = screen.get_height()
 
-        margin_x = 40
-        top = 120
-        bottom = 70
+        margin_x = 24
+        top = 108
+        bottom = 72
         gap = 16
 
+        self.viewport_rect = pygame.Rect(
+            margin_x,
+            top,
+            max(1, w - margin_x * 2),
+            max(1, h - top - bottom),
+        )
+
+        # Pick columns by width so each card remains readable.
+        if self.viewport_rect.width >= 980:
+            self.columns = 4
+        elif self.viewport_rect.width >= 760:
+            self.columns = 3
+        elif self.viewport_rect.width >= 520:
+            self.columns = 2
+        else:
+            self.columns = 1
+
         count = max(1, len(self.level_entries))
-        chosen_cols = 1
-        for cols in (3, 2, 1):
-            if cols > count:
-                continue
-            rows = math.ceil(count / cols)
-            card_w = (w - margin_x * 2 - gap * (cols - 1)) // cols
-            card_h = (h - top - bottom - gap * (rows - 1)) // rows
-            if card_w >= 180 and card_h >= 130:
-                chosen_cols = cols
-                break
-
-        self.columns = chosen_cols
         rows = math.ceil(count / self.columns)
-        card_w = (w - margin_x * 2 - gap * (self.columns - 1)) // self.columns
-        card_h = (h - top - bottom - gap * (rows - 1)) // rows
 
-        self.card_rects = []
+        card_w = (self.viewport_rect.width - gap * (self.columns - 1)) // self.columns
+        card_w = max(180, card_w)
+        card_h = 168
+
+        self.content_rects = []
         for idx in range(count):
             r = idx // self.columns
             c = idx % self.columns
-            x = margin_x + c * (card_w + gap)
-            y = top + r * (card_h + gap)
-            self.card_rects.append(pygame.Rect(x, y, card_w, card_h))
+            x = c * (card_w + gap)
+            y = r * (card_h + gap)
+            self.content_rects.append(pygame.Rect(x, y, card_w, card_h))
+
+        content_h = rows * card_h + max(0, rows - 1) * gap
+        self.max_scroll = max(0, content_h - self.viewport_rect.height)
+        self.scroll_y = max(0, min(self.scroll_y, self.max_scroll))
+        self._ensure_selected_visible()
+
+    def _scroll_by(self, dy):
+        self.scroll_y = max(0, min(self.max_scroll, self.scroll_y + dy))
+
+    def _ensure_selected_visible(self):
+        if not self.content_rects or self.selected_index >= len(self.content_rects):
+            return
+
+        rect = self.content_rects[self.selected_index]
+        top_visible = self.scroll_y
+        bottom_visible = self.scroll_y + self.viewport_rect.height
+
+        pad = 8
+        if rect.top - pad < top_visible:
+            self.scroll_y = max(0, rect.top - pad)
+        elif rect.bottom + pad > bottom_visible:
+            self.scroll_y = min(self.max_scroll, rect.bottom + pad - self.viewport_rect.height)
+
+    def _screen_to_content(self, pos):
+        sx, sy = pos
+        if not self.viewport_rect.collidepoint(pos):
+            return None
+        return (sx - self.viewport_rect.x, sy - self.viewport_rect.y + self.scroll_y)
 
     def handle_events(self):
         for event in pygame.event.get():
@@ -156,33 +196,56 @@ class LevelSelectState(BaseState):
 
                 elif event.key == pygame.K_LEFT:
                     self.selected_index = max(0, self.selected_index - 1)
+                    self._ensure_selected_visible()
 
                 elif event.key == pygame.K_RIGHT:
                     self.selected_index = min(len(self.level_entries) - 1, self.selected_index + 1)
+                    self._ensure_selected_visible()
 
                 elif event.key == pygame.K_UP:
                     self.selected_index = max(0, self.selected_index - self.columns)
+                    self._ensure_selected_visible()
 
                 elif event.key == pygame.K_DOWN:
                     self.selected_index = min(len(self.level_entries) - 1, self.selected_index + self.columns)
+                    self._ensure_selected_visible()
+
+                elif event.key == pygame.K_PAGEUP:
+                    self._scroll_by(-self.viewport_rect.height // 2)
+
+                elif event.key == pygame.K_PAGEDOWN:
+                    self._scroll_by(self.viewport_rect.height // 2)
 
                 elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                     self._confirm_selection()
 
+            if event.type == pygame.MOUSEWHEEL:
+                self._scroll_by(-event.y * 48)
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 4:
+                    self._scroll_by(-48)
+                elif event.button == 5:
+                    self._scroll_by(48)
+                elif event.button == 1:
+                    content_pos = self._screen_to_content(event.pos)
+                    if content_pos is not None:
+                        self.hover_index = None
+                        for i, rect in enumerate(self.content_rects):
+                            if rect.collidepoint(content_pos):
+                                self.selected_index = i
+                                self._confirm_selection()
+                                break
+
             if event.type == pygame.MOUSEMOTION:
                 self.hover_index = None
-                for i, rect in enumerate(self.card_rects):
-                    if rect.collidepoint(event.pos):
-                        self.hover_index = i
-                        self.selected_index = i
-                        break
-
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                for i, rect in enumerate(self.card_rects):
-                    if rect.collidepoint(event.pos):
-                        self.selected_index = i
-                        self._confirm_selection()
-                        break
+                content_pos = self._screen_to_content(event.pos)
+                if content_pos is not None:
+                    for i, rect in enumerate(self.content_rects):
+                        if rect.collidepoint(content_pos):
+                            self.hover_index = i
+                            self.selected_index = i
+                            break
 
         return True
 
@@ -200,18 +263,37 @@ class LevelSelectState(BaseState):
         screen.fill((20, 24, 30))
 
         title = self.title_font.render("SELECT LEVEL", True, (235, 200, 255))
-        screen.blit(title, title.get_rect(center=(screen.get_width() // 2, 56)))
+        screen.blit(title, title.get_rect(center=(screen.get_width() // 2, 42)))
 
-        hint = self.small_font.render("Mouse: click a map | Keys: Arrows + Enter | ESC: Back", True, (210, 220, 235))
-        screen.blit(hint, hint.get_rect(center=(screen.get_width() // 2, 92)))
+        hint = self.small_font.render(
+            "Mouse: click / wheel    Keys: arrows + enter    PgUp/PgDn scroll    ESC back",
+            True,
+            (210, 220, 235),
+        )
+        screen.blit(hint, hint.get_rect(center=(screen.get_width() // 2, 78)))
 
         if not self.level_entries:
             no_maps = self.text_font.render("No level files found in data/maps", True, (255, 180, 180))
             screen.blit(no_maps, no_maps.get_rect(center=screen.get_rect().center))
             return
 
+        # Viewport frame
+        pygame.draw.rect(screen, (45, 55, 74), self.viewport_rect, border_radius=10)
+        pygame.draw.rect(screen, (110, 140, 170), self.viewport_rect, 2, border_radius=10)
+
+        prev_clip = screen.get_clip()
+        screen.set_clip(self.viewport_rect)
+
         for i, entry in enumerate(self.level_entries):
-            rect = self.card_rects[i]
+            if i >= len(self.content_rects):
+                break
+
+            src = self.content_rects[i]
+            rect = src.move(self.viewport_rect.x, self.viewport_rect.y - self.scroll_y)
+
+            if rect.bottom < self.viewport_rect.top or rect.top > self.viewport_rect.bottom:
+                continue
+
             selected = i == self.selected_index
             hovered = i == self.hover_index
 
@@ -237,3 +319,19 @@ class LevelSelectState(BaseState):
 
             label = self.text_font.render(entry["label"], True, (235, 235, 245))
             screen.blit(label, label.get_rect(center=(rect.centerx, rect.bottom - 20)))
+
+        screen.set_clip(prev_clip)
+
+        # Scrollbar
+        if self.max_scroll > 0:
+            bar_w = 8
+            bar_h = self.viewport_rect.height
+            bar_x = self.viewport_rect.right - bar_w - 4
+            bar_y = self.viewport_rect.y + 2
+            track = pygame.Rect(bar_x, bar_y, bar_w, bar_h - 4)
+            pygame.draw.rect(screen, (70, 80, 95), track, border_radius=4)
+
+            thumb_h = max(26, int(track.height * (self.viewport_rect.height / (self.viewport_rect.height + self.max_scroll))))
+            thumb_y = track.y + int((track.height - thumb_h) * (self.scroll_y / self.max_scroll))
+            thumb = pygame.Rect(track.x, thumb_y, track.width, thumb_h)
+            pygame.draw.rect(screen, (180, 200, 225), thumb, border_radius=4)

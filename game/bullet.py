@@ -22,6 +22,8 @@ class Bullet:
                     destroyed = wall.take_damage()
                     if destroyed:
                         walls.remove(wall)
+                    self.alive = False
+                    break
                 else:
                     # Move back out of the wall before reflecting to avoid "stuck" bounces
                     self.position = old_position
@@ -31,6 +33,7 @@ class Bullet:
                     if MAX_BULLET_BOUNCES != -1:
                         if self.bounce_count > MAX_BULLET_BOUNCES:
                             self.alive = False
+                    break
 
         self.sparks = [(pos, timer + dt) for pos, timer in self.sparks if timer < 0.2]
 
