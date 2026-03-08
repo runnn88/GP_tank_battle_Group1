@@ -46,10 +46,10 @@ class Settings:
 
         # Keybinds
         self.keybinds = {
-            "p1_turret_left": pygame.K_r,
-            "p1_turret_right": pygame.K_t,
-            "p2_turret_left": pygame.K_n,
-            "p2_turret_right": pygame.K_m,
+            "p1_turret_left": pygame.K_q,
+            "p1_turret_right": pygame.K_e,
+            "p2_turret_left": pygame.K_k, 
+            "p2_turret_right": pygame.K_l,
         }
 
     @property
